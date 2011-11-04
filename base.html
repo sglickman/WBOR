@@ -1,7 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"
+      xmlns="http://www.w3.org/1999/xhtml" dir="ltr"
+      xmlns:fb="https://www.facebook.com/2008/fbml">
+<head prefix="og: http://ogp.me/ns# fb: http://ogp.me/ns/fb# wbor_org: http://ogp.me/ns/fb/wbor_org#">
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+{% block extra_metatags %}
+{% endblock %}
 
 <title>{% block title %}WBOR{% endblock %}</title>
 
@@ -121,16 +125,17 @@
         nowPlayingTimer = setTimeout("nowPlaying()", 30000);
     }
 </script>
+{% block extra_scripts %}{% endblock %}
+</head>
+<body onLoad="background();">
+<div id="fb-root"></div>
 <script>(function(d, s, id) {
   var js, fjs = d.getElementsByTagName(s)[0];
   if (d.getElementById(id)) {return;}
   js = d.createElement(s); js.id = id;
-  js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
+  js.src = "//connect.facebook.net/en_US/all.js#appId=261274760579095&xfbml=1";
   fjs.parentNode.insertBefore(js, fjs);
-  }(document, 'script', 'facebook-jssdk'));</script>
-{% block extra_scripts %}{% endblock %}
-</head>
-<body onLoad="background();">
+}(document, 'script', 'facebook-jssdk'));</script>
 <div id='outer-wrap'>
 <div id='wrap' class='container_12'>
     <div id='header'>

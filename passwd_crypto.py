@@ -3,6 +3,7 @@
 
 from hashlib import sha256
 from hmac import HMAC
+from sys import version_info
 import random
 
 # Gleefully stolen from a StackOverflow post
@@ -10,8 +11,10 @@ import random
 def random_bytes(num_bytes):
   return "".join(chr(random.randrange(256)) for i in xrange(num_bytes))
 
-def pbkdf_sha256(password, salt, iterations):
+def pbkdf_sha256(password, salt, iterations):    
   result = password
+  if version_info < (2,6):
+    bytes = (lambda x: x)
   for i in xrange(iterations):
     result = HMAC(bytes(result), salt, sha256).digest() # use HMAC to apply the salt
   return result

@@ -1,9 +1,34 @@
 {% extends "base.html" %}
+{% block extra_metatags %}
+  <meta property="fb:app_id"      content="261274760579095"> 
+  <meta property="og:type"        content="wbor_org:radio_show"> 
+  <meta property="og:url"         content="http://1-4-facebook.wbor-brunswick.appspot.com/programs/{{ program.slug }}"> 
+  <meta property="og:title"       content="{{ program.title }}"> 
+  <meta property="og:description" content="{{ program.desc }}"> 
+  <meta property="og:image"       content="https://s-static.ak.fbcdn.net/images/devsite/attachment_blank.png"> 
+{% endblock %}
 
 {% block left_column %}
+  <script type="text/javascript">
+    function postTuneIn()
+    {
+    FB.api('/me/wbor_org:tune_in_to' + 
+    '?radio_show=http://1-4-facebook.wbor-brunswick.appspot.com/programs/{{ program.slug }}','post',
+    function(response) {
+    if (!response || response.error) {
+    alert('Error occured');
+    } else {
+    alert('Post was successful! Action ID: ' + response.id);
+    }
+    });
+    }
+  </script>
 <div>
   <h4>{{ program.title }}</h4>
   {{ program.page_html }}
+  <form>
+    <input type="button" value="I tuned in!" onclick="postTuneIn()" />
+  </form>
 </div>
 
 <div id='show-djs'>
