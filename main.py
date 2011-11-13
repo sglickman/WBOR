@@ -419,6 +419,12 @@ class ProgramPage(webapp.RequestHandler):
       }
     self.response.out.write(template.render(getPath("show.html"), template_values))
 
+class RedirectToHR(webapp.RequestHandler):
+  def get(self, tail=""):
+    self.redirect("http://wbor-hr.appspot.com/" + tail, permanent=False)
+
+  def put(self, tail=""):
+    self.redirect("http://wbor-hr.appspot.com/" + tail, permanent=False)
 
 def profile_main():
   # This is the main function for profiling
@@ -437,26 +443,7 @@ def profile_main():
 
 def real_main():
   application = webapp.WSGIApplication([
-      ('/', MainPage),
-      ('/updateinfo/?', UpdateInfo),
-      ('/ajax/albumtable/?', AlbumTable),
-      ('/ajax/albuminfo/?', AlbumInfo),
-      ('/ajax/artistcomplete/?', ArtistComplete),
-      ('/ajax/getSongList/?', SongList),
-      ('/ajax/djcomplete/?', DjComplete),
-      ('/setup/?', Setup),
-      ('/blog/([^/]*)/([^/]*)/?', BlogDisplay),
-      ('/programs?/([^/]*)/?', ProgramPage),
-      ('/schedule/?', SchedulePage),
-      ('/playlists/?', PlaylistPage),
-      ('/fun/?', FunPage),
-      ('/charts/?', ChartsPage),
-      ('/history/?', HistoryPage),
-      ('/contact/?', ContactPage),
-      ('/events/?', EventPage),
-      ('/searchnames/?', ConvertArtistNames),
-      ('/convertplays/?', ConvertPlays),
-      ('/albums/([^/]*)/([^/]*)/?', AlbumDisplay),
+      ('/(.*)', RedirectToHR),
       ],
                                        debug=True)
   util.run_wsgi_app(application)
