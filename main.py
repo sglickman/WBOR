@@ -421,7 +421,8 @@ class ProgramPage(webapp.RequestHandler):
 
 class RedirectToHR(webapp.RequestHandler):
   def get(self, tail=""):
-    self.redirect("http://wbor-hr.appspot.com/" + tail, permanent=False)
+    self.response.out.write("Please use wbor-hr.appspot.com for the time being, as this app is no longer maintained.")
+#    self.redirect("http://wbor-hr.appspot.com/" + tail, permanent=False)
 
   def put(self, tail=""):
     self.redirect("http://wbor-hr.appspot.com/" + tail, permanent=False)
