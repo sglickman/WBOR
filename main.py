@@ -425,7 +425,8 @@ class RedirectToHR(webapp.RequestHandler):
 #    self.redirect("http://wbor-hr.appspot.com/" + tail, permanent=False)
 
   def put(self, tail=""):
-    self.redirect("http://wbor-hr.appspot.com/" + tail, permanent=False)
+    pass
+#    self.redirect("http://wbor-hr.appspot.com/" + tail, permanent=False)
 
 def profile_main():
   # This is the main function for profiling
