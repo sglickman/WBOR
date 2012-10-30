@@ -170,7 +170,7 @@ class Album(CachedModel):
       return query.fetch(num, keys_only=True, start_cursor=cursor)
     else:
       return query.fetch_page(num, keys_only=True, start_cursor=cursor)
-    
+
 
   def put(self):
     # If we've toggled the newness of the album, update cache.
@@ -225,7 +225,7 @@ class Album(CachedModel):
     cached = cls.get_cached_query(cls.NEW)
     if not cached or cached.need_fetch(num):
       num_to_fetch = num - len(cached)
-      keys, cursor, more = cls.get_key(is_new=True, 
+      keys, cursor, more = cls.get_key(is_new=True,
                                        order=(-RawAlbum.add_date,), num=num,
                                        page=True, cursor=cached.cursor)
       cached.extend(keys)
@@ -274,9 +274,11 @@ class Song(CachedModel):
                title=None, artist=None, album=None,
                parent=None, **kwds):
     if raw is not None:
-      super(Song, self).__init(raw=raw)
+      super(Song, self).__init__(raw=raw)
+      return
     elif raw_key is not None:
-      super()
+      super(Song, self).__init__(raw_key=raw_key)
+      return
 
     if parent is None:
       parent = album
@@ -304,11 +306,10 @@ class Song(CachedModel):
   @classmethod
   def get(cls, keys=None,
           title=None, order=None,
-          num=-1, use_datastore=True, one_key=False):
+          num=-1, one_key=False):
     if keys is not None:
-      logging.debug(keys)
-      return super(Song, cls).get(keys, use_datastore=use_datastore,
-                                        one_key=one_key)
+      logging.error(keys)
+      return super(Song, cls).get(keys, one_key=one_key)
 
     keys = cls.get_key(title=title, order=order, num=num)
     if keys is not None:
@@ -366,7 +367,6 @@ class ArtistName(CachedModel):
       super(ArtistName, self).__init__(artist_name=artist_name, **kwds)
       return
 
-  @property
   def artist_name(self):
     return self.raw.artist_name
   @property

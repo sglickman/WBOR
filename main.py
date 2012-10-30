@@ -11,9 +11,8 @@ import logging
 
 from models.dj import Permission, Dj
 from models.tracks import Album, Song, ArtistName
-from models.play import Play
+from models.play import Play, Program
 from models.base_models import NoSuchEntry
-from models.program import Program
 from models.blog import BlogPost
 
 import amazon
@@ -260,9 +259,10 @@ class UpdateInfo(webapp2.RequestHandler):
   def get(self):
     recent_songs = Play.get_last(num=3)
     if recent_songs is not None and len(recent_songs) > 0:
-      last_play = recent_songs[0]
+      last_play = recent_songs[-1]
       song, program = (last_play.song,
                        last_play.program)
+      logging.error(song.raw)
       song_string = song.title
       artist_string = song.artist
       if program is not None:
@@ -289,7 +289,7 @@ class UpdateInfo(webapp2.RequestHandler):
           'program_desc': program_desc,
           'program_slug': program_slug,
           'top_played': ("Top artists: " + ", ".join(
-            [a for a in program.top_artists[:3]]) if
+            [a[0] for a in program.top_artists[:3]]) if
                          program is not None else None),
           'recent_songs_html': template.render(
             get_path("recent_songs.html"), {'plays': recent_songs}),
