@@ -596,8 +596,10 @@ class Permission(CachedModel):
       return allcache
 
     if keys_only:
-      return cls.set_all_cache(cls.get_key(order="title", num=1000))
-    return cls.get(keys=cls.set_all_cache(cls.get_key(order="title", num=1000)))
+      return cls.set_all_cache(cls.get_key(
+        order=RawPermission.title, num=1000))
+    return cls.get(keys=cls.set_all_cache(
+      cls.get_key(order=RawPermission.title, num=1000)))
 
   @classmethod
   def get_by_title(cls, title, keys_only=False):

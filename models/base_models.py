@@ -383,10 +383,6 @@ class CachedModel(object):
 
     return None
 
-  @classmethod
-  def get_cached_query(cls, index, *args, **kwargs):
-    return QueryCache.fetch(index % args)
-
   def put(self):
     '''
     Update datastore with self, and then update memcache for self.

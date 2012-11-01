@@ -226,7 +226,7 @@ class Album(CachedModel):
     if num < 1:
       return None
 
-    cached = cls.get_cached_query(cls.NEW)
+    cached = QueryCache.fetch(cls.NEW)
     if not cached or cached.need_fetch(num):
       num_to_fetch = num - len(cached)
       keys, cursor, more = cls.get_key(is_new=True,

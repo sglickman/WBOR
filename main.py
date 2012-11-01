@@ -101,10 +101,13 @@ class AlbumTable(BaseHandler):
       return
     album_table_html = memcache.get("album_table_html")
     if album_table_html is None:
-      albums = models.getNewAlbums(20, page)
+      albums, cursor, more = Albums.get_new(
+        num=20, cursor=cursor, page=True)
       template_values = {
         'session': self.session,
         'album_list': albums,
+        'cursor': cursor.urlsafe(),
+        'more': more,
         }
       album_table_html = template.render(
         get_path("newalbums.html"), template_values)
@@ -221,7 +224,7 @@ class Setup(BaseHandler):
 class BlogDisplay(BaseHandler):
   def get(self, date_string, post_slug):
     post_date = datetime.datetime.strptime(date_string, "%Y-%m-%d")
-    post = models.getPostBySlug(post_date, post_slug)
+    post = BlogPost.get_by_slug(post_slug, post_date=post_date)
     if not post:
       self.session.add_flash(
         "The post you requested could not be found.  Please try again.")
@@ -574,7 +577,7 @@ class ContactPage(BaseHandler):
     # So general MGMT can edit contacts page
     contacts = memcache.get("contacts_page_html")
     if contacts is None:
-      contacts = models.BlogPost.all().filter("slug =", "contacts-page").get()
+      contacts = BlogPost.get_by_slug("contacts-page")
     cache.mcset_t(contacts, 3600, "contacts_page_html")
     template_values = {
       'contact_selected': True,

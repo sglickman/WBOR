@@ -135,8 +135,8 @@
           <thead><tr><th>Remove?</th><th>Name</th><th>Email</th></tr></thead>
           <tbody>{% for dj in program_djs %}
             <tr><td><a>×</a></td>
-              <td id="djname">{{ dj.p_fullname }}</td>
-              <td id="djemail">{{ dj.p_email }}</td>
+              <td id="djname">{{ dj.fullname }}</td>
+              <td id="djemail">{{ dj.email }}</td>
               <input type="hidden" id="djkey" name="djkey" 
                      value="{{ dj.key.urlsafe }}"></tr> 
             {% endfor %}</tbody>

@@ -26,6 +26,8 @@ class BlogPost(LastCachedModel):
   LAST_ORDER = -1
   LAST_ORDERBY = (-_RAW.post_date,)
 
+  BY_SLUG = "@blogpost_slug%s_date%s"
+
   @property
   def _orderby(self):
     return self.post_date
@@ -54,6 +56,10 @@ class BlogPost(LastCachedModel):
   @property
   def post_date(self):
     return self.raw.post_date
+  @property
+  def post_date_as_date(self):
+    return datetime.datetime.combine(
+      self.post_date.date(), datetime.datetime.time())
 
   def __init__(self, raw=None, raw_key=None,
                title=None, text=None, post_date=None,
@@ -124,6 +130,66 @@ class BlogPost(LastCachedModel):
   @classmethod
   def get_last(cls, num=3, keys_only=False):
     return super(BlogPost, cls).get_last(num=num, keys_only=keys_only)
+
+  @classmethod
+  def get_by_slug(cls, slug, post_date=None):
+    before = None
+    after = None
+    if post_date is not None:
+      if isinstance(post_date, datetime.date):
+        after = datetime.datetime.combine(
+          post_date, datetime.time())
+      else:
+        after = datetime.datetime.combine(
+          post_date.date(), datetime.time())
+      before = after + datetime.timedelta(days=1)
+
+    cached = cls._get_slug_cache(slug, after)
+    if cached is not None:
+      return cached
+    dateless_cached = cls._get_slug_cache(slug)
+    if dateless_cached is not None:
+      if (dateless_cached.post_date >= before and
+          dateless_cached.post_date < after):
+        cls._add_slug_cache(dateless_cached.key, slug, after)
+        return dateless_cached
+
+    post = cls.get(slug=slug, before=before, after=after)
+    if post is not None:
+      # Add post to appropriate caches
+      cls._add_slug_cache(post.key, slug, after)
+      if dateless_cached is None:
+        cls._add_slug_cache(post.key, slug)
+
+      return post
+    return None
+
+  @classmethod
+  def _get_slug_cache(cls, slug, date=None, keys_only=False):
+    return cls.get_by_index(cls.BY_SLUG, slug, date, keys_only=keys_only)
+  @classmethod
+  def _add_slug_cache(cls, key, slug, date=None):
+    return cls.cache_set(key, cls.BY_SLUG, slug, date)
+
+  def add_to_cache(self):
+    super(BlogPost, self).add_to_cache()
+
+    # Add self to slug caches
+    self._add_slug_cache(self.key, self.slug)
+    self._add_slug_cache(self.key, self.slug,
+                         datetime.datetime.combine(
+                           self.post_date.date(), datetime.time()))
+
+  def purge_from_cache(self):
+    super(BlogPost, self).purge_from_cache()
+
+    # Purge slug caches, if appropriate
+    if self.key == self._get_slug_cache(self.slug,
+                                        self.post_date_as_date,
+                                        keys_only=True):
+      self.cache_delete(cls.BY_SLUG, slug, self.post_date_as_date)
+    if self.key ==  self._get_slug_cache(self.slug, keys_only=True):
+      self.cache_delete(cls.BY_SLUG, slug)
 
 class Event(CachedModel):
   _RAW = RawEvent
