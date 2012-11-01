@@ -7,12 +7,13 @@
 from __future__ import with_statement
 
 # GAE Imports
-from google.appengine.ext import db
+from google.appengine.ext import db, ndb
 
 # Local module imports
 from passwd_crypto import hash_password, check_password
 from base_models import (CachedModel, QueryError, ModelError, NoSuchEntry)
 from base_models import quantummethod, as_key, as_keys, is_key
+from base_models import SetQueryCache
 
 from _raw_models import Dj as RawDj
 from _raw_models import Permission as RawPermission
@@ -51,6 +52,7 @@ class Dj(CachedModel):
   # not rechecking the datastore. Figit with this number to balance reads and
   # autocomplete functionality. Possibly consider algorithmically determining
   # a score for artist names and prefixes?
+  AC_FETCH_NUM = 10
   MIN_AC_CACHE = 10
   MIN_AC_RESULTS = 5
 
@@ -350,85 +352,89 @@ class Dj(CachedModel):
   @classmethod
   def autocomplete(cls, prefix):
     prefix = prefix.lower().strip()
-    # First, see if we have anything already cached for us in memstore.
-    # We start with the most specific prefix, and widen our search
-    cache_prefix = prefix
-    cached_results = None
-    perfect_hit = True
-    while cached_results is None:
-      if len(cache_prefix) > 0:
-        cached_results = cls.cache_get(cls.COMPLETE %cache_prefix)
-        if cached_results is None:
-          cache_prefix = cache_prefix[:-1]
-          perfect_hit = False
+
+    # Go into memory and grab all (some?) of the caches for this
+    # prefix and earlier
+    cache_list = [SetQueryCache.fetch(cls.COMPLETE %prefix[:i+1]) for
+                  i in range(len(prefix))]
+
+    best_data = set()
+    for prelen, cached_query in enumerate(cache_list):
+      if len(cached_query) > 0:
+        best_data = cached_query.results
       else:
-        cached_results = {"recache_count": -1,
-                          "max_results": False,
-                          "djs": None,}
+        best_data = set(
+          filter(lambda dj: cls.get(dj).has_prefix(prefix[:prelen+1]), 
+                 best_data))
+        cached_query.set(best_data)
+        cached_query.save()
 
-    # If we have a sufficient number of cached results OR we
-    #    have all possible results, search in 'em.
-    logging.debug(cache_prefix)
-    logging.debug(cached_results)
-    logging.debug(perfect_hit)
-    if (cached_results["recache_count"] >= 0 and
-        (cached_results["max_results"] or
-         len(cached_results["djs"]) >= cls.MIN_AC_CACHE)):
-      logging.debug("Trying to use cached results")
+    cached = cache_list.pop() # Get the cache for the relevant prefix
+    if cached.need_fetch(cls.AC_FETCH_NUM):
+      # We have to fetch some keys from the datastore
+      if cached.cursor is None:
+        cached.cursor = dict.fromkeys(['lower', 'user', 'email'])
 
-      cache_djs = sorted(cached_results["djs"],
-                             key=lambda x: cls.get(x).lowername)
+      # Prep the queries
+      user_query = RawDj.query().filter(
+        ndb.AND(RawDj.username >= prefix,
+                RawDj.username < (prefix + u"\ufffd")))
+      lower_query = RawDj.query().filter(
+        ndb.AND(RawDj.lowername >= prefix,
+                RawDj.lowername < (prefix + u"\ufffd")))
+      email_query = RawDj.query().filter(
+        ndb.AND(RawDj.email >= prefix,
+                RawDj.email < (prefix + u"\ufffd")))
+      
+      try:
+        # Try to continue an older query
+        num = cls.AC_FETCH_NUM - len(cached)
 
-      # If the cache is perfect (exact match!), just return it
-      if perfect_hit:
-        # There is no need to update the cache in this case.
-        logging.debug(cache_djs)
-        return cls.get(cache_djs)
+        lower_dj_keys, lower_cursor, l_more = lower_query.fetch_page(
+          num, start_cursor=cached.cursor['lower'], 
+          keys_only=True)
+        email_dj_keys, email_cursor, e_more = email_query.fetch_page(
+          num, start_cursor=cached.cursor['email'],
+          keys_only=True)
+        user_dj_keys, user_cursor, u_more = user_query.fetch_page(
+          num, start_cursor=cached.cursor['user'],
+          keys_only=True)
 
-      # Otherwise we're going to have to search in the cache.
-      results = filter(lambda a: cls.get(a).has_prefix(prefix),
-                       cache_djs)
-      if cached_results["max_results"]:
-        # We're as perfect as we can be, so cache the results
-        cached_results["recache_count"] += 1
-        cached_results["djs"] = results
-        cls.cache_set(cached_results, cls.COMPLETE, prefix)
-        return cls.get(results)
-      elif len(results) > cls.MIN_AC_RESULTS:
-        if len(results) > cls.MIN_AC_CACHE:
-          cached_results["recache_count"] += 1
-          cached_results["djs"] = results
-          cls.cache_set(cached_results, cls.COMPLETE, prefix)
-          return cls.get(results)
-        return cls.get(results)
+        cache_results = cached.results
 
-    djs_by_full = (cls._RAW.query()
-                   .filter(cls._RAW.lowername >= prefix)
-                   .filter(cls._RAW.lowername < (prefix + u"\ufffd"))
-                   .fetch(10, keys_only=True))
-    djs_by_email = (cls._RAW.query()
-                    .filter(cls._RAW.email >= prefix)
-                    .filter(cls._RAW.email < (prefix + u"\ufffd"))
-                    .fetch(10, keys_only=True))
-    djs_by_username = (cls._RAW.query()
-                       .filter(cls._RAW.username >= prefix)
-                       .filter(cls._RAW.username < (prefix + u"\ufffd"))
-                       .fetch(10, keys_only=True))
+      except db.BadRequestError:
+        # Unable to continue the older query. Run a new one.
+        lower_dj_keys, lower_cursor, l_more = lower_query.fetch_page(
+          num, keys_only=True)
+        email_dj_keys, email_cursor, e_more = email_query.fetch_page(
+          num, keys_only=True)
+        user_dj_keys, email_cursor, u_more = user_query.fetch_page(
+          num, keys_only=True)
 
-    max_results = (len(djs_by_full) < 10 and
-                   len(djs_by_email) < 10 and
-                   len(djs_by_username) < 10)
+        cache_results = set()
 
-    djs = Dj.get(list(set(djs_by_full + djs_by_email + djs_by_username)))
-    djs = sorted(djs, key=lambda x: x.lowername)
+      add_djs = (set(email_dj_keys) | 
+                 set(user_dj_keys) | 
+                 set(lower_dj_keys))
+      dj_keys = cached.results | add_djs     
 
-    results_dict = {"recache_count": 0,
-                    "max_results": max_results,
-                    "djs": [dj.key for dj in djs]}
+      # We've got a bunch of artistnames for this prefix, so let's
+      # update all of our cached queries: this one, and all supqueries
+      cached.extend_by(add_djs,
+                       {'lower': lower_cursor, 
+                        'email': email_cursor, 
+                        'user': user_cursor},
+                       l_more or e_more or u_more)
+      cached.save()
 
-    cls.cache_set(results_dict, cls.COMPLETE, prefix)
-    return djs
+      for cached_query in reversed(cache_list):
+        cached_query.extend(add_djs)
+        cached_query.save()
+    else:
+      # We don't have to fetch anything!
+      dj_keys = cached.results
 
+    return cls.get(dj_keys)
 
 
 class Permission(CachedModel):

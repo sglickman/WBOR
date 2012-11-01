@@ -82,7 +82,7 @@ class ArtistComplete(BaseHandler):
     artists = ArtistName.autocomplete(q)
     self.response.out.write(json.dumps({
           'query': q,
-          'suggestions': [ar.artist_name for ar in artists],
+          'suggestions': artists,
           }))
 
 class AlbumTable(BaseHandler):

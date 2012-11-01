@@ -16,6 +16,8 @@ from _raw_models import Album as RawAlbum
 from _raw_models import Song as RawSong
 from _raw_models import ArtistName as RawArtistName
 
+from _raw_models import search_namify
+
 # Global python imports
 import logging
 import itertools
@@ -452,6 +454,21 @@ class ArtistName(CachedModel):
 
     return False
 
+  @staticmethod
+  def name_has_prefix(name, prefix):
+    prefixes = prefix.split()
+
+    for name_part in search_namify(name).split():
+      check_prefixes = prefixes
+      for prefix in check_prefixes:
+        if name_part.startswith(prefix):
+          prefixes.remove(prefix)
+          if len(prefixes) == 0:
+            return True
+            break
+
+    return False
+
   # As it is now, autocomplete is a little wonky. One thing worth
   # noting is that we search cache a bit more effectively than the
   # datastore: for example, if you've got a cached prefix "b" and
@@ -473,8 +490,9 @@ class ArtistName(CachedModel):
       if len(cached_query) > 0:
         best_data = cached_query.results
       else:
-        best_data = set(filter(lambda an: ArtistName.get(an)
-                               .has_prefix(prefix[:prelen+1]), best_data))
+        best_data = set(
+          filter(lambda an: ArtistName.name_has_prefix(an, prefix[:prelen+1]), 
+                 best_data))
         cached_query.set(best_data)
         cached_query.save()
 
@@ -483,59 +501,55 @@ class ArtistName(CachedModel):
       # We have to fetch some keys from the datastore
       if cached.cursor is None:
         cached.cursor = {'lower': None, 'search': None}
+
+      # Prep the queries
+      lower_query = RawArtistName.query().filter(
+        ndb.AND(RawArtistName.lowercase_name >= prefix,
+                RawArtistName.lowercase_name < (prefix + u"\ufffd")))
+      search_query = RawArtistName.query().filter(
+        ndb.AND(RawArtistName.search_name >= prefix,
+                RawArtistName.search_name < (prefix + u"\ufffd")))
+      
       try:
         # Try to continue an older query
         num = cls.AC_FETCH_NUM - len(cached)
-        lower_query = RawArtistName.query().filter(
-          ndb.AND(RawArtistName.lowercase_name >= prefix,
-                  RawArtistName.lowercase_name < (prefix + u"\ufffd")))
-        search_query = RawArtistName.query().filter(
-          ndb.AND(RawArtistName.search_name >= prefix,
-                  RawArtistName.search_name < (prefix + u"\ufffd")))
+
         lower_raw_artists, lower_cursor, l_more = lower_query.fetch_page(
-          num, start_cursor=cached.cursor['lower'])
+          num, start_cursor=cached.cursor['lower'], 
+          projection=[RawArtistName.artist_name])
         search_raw_artists, search_cursor, s_more = search_query.fetch_page(
-          num, start_cursor=cached.cursor['search'])
+          num, start_cursor=cached.cursor['search'],
+          projection=[RawArtistName.artist_name])
 
-        lower_keys = [a.key for a in lower_raw_artists]
-        raw_artists = lower_raw_artists + [a for a in search_raw_artists if
-                                           a.key not in lower_keys]
+        cache_results = cached.results
 
-        artists = (cls.get(cached.results) +
-                   [cls(raw=raw) for raw in raw_artists])
       except db.BadRequestError:
         # Unable to continue the older query. Run a new one.
-        lower_query = RawArtistName.query().filter(
-          ndb.AND(RawArtistName.lowercase_name >= prefix,
-                  RawArtistName.lowercase_name < (prefix + u"\ufffd")))
-        search_query = RawArtistName.query().filter(
-          ndb.AND(RawArtistName.search_name >= prefix,
-                  RawArtistName.search_name < (prefix + u"\ufffd")))
         lower_raw_artists, lower_cursor, l_more = lower_query.fetch_page(
-          num, start_cursor=cached.cursor['lower'])
+          num,
+          projection=[RawArtistName.artist_name])
         search_raw_artists, search_cursor, s_more = search_query.fetch_page(
-          num, start_cursor=cached.cursor['search'])
+          num,
+          projection=[RawArtistName.artist_name])
 
-        lower_keys = [a.key for a in lower_raw_artists]
-        raw_artists = lower_raw_artists + [a for a in search_raw_artists if
-                                           a.key not in lower_keys]
+        cache_results = set()
 
-        artists = [cls(raw=raw) for raw in raw_artists]
-
-      artist_keys = set([raw.key for artist in artists])
+      add_artists = (set(a.artist_name for a in search_raw_artists) | 
+                     set(a.artist_name for a in lower_raw_artists))
+      artist_names = cached.results | add_artists     
 
       # We've got a bunch of artistnames for this prefix, so let's
       # update all of our cached queries: this one, and all supqueries
-      cached.extend_by(artist_keys,
+      cached.extend_by(add_artists,
                        {'lower': lower_cursor, 'search': search_cursor},
                        l_more or s_more)
       cached.save()
 
       for cached_query in reversed(cache_list):
-        cached_query.extend(artist_keys)
+        cached_query.extend(add_artists)
         cached_query.save()
     else:
       # We don't have to fetch anything!
-      artists = cls.get(cached.results)
+      artist_names = cached.results
 
-    return sorted(artists, key=lambda x: x.search_name)
+    return sorted(artist_names, key=lambda x: search_namify(x))
