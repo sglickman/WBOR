@@ -259,7 +259,7 @@ class UpdateInfo(webapp2.RequestHandler):
   def get(self):
     recent_songs = Play.get_last(num=3)
     if recent_songs is not None and len(recent_songs) > 0:
-      last_play = recent_songs[-1]
+      last_play = recent_songs[0]
       song, program = (last_play.song,
                        last_play.program)
       logging.error(song.raw)

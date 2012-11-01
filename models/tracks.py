@@ -313,19 +313,19 @@ class Song(CachedModel):
 
     keys = cls.get_key(title=title, order=order, num=num)
     if keys is not None:
-      return cls.get(keys=keys, use_datastore=use_datastore)
+      return cls.get(keys=keys)
     return None
 
   @classmethod
   def get_key(cls, title=None, order=None, num=-1):
-    query = cls.all(keys_only=True)
+    query = cls._RAW.query()
 
     if order is not None:
       query = query.order(order)
 
     if num == -1:
-      return query.get()
-    return query.fetch(num)
+      return query.get(keys_only=True)
+    return query.fetch(num, keys_only=True)
 
   def put(self):
     return super(Song, self).put()
@@ -352,6 +352,7 @@ class ArtistName(CachedModel):
   # not rechecking the datastore. Figit with this number to balance reads and
   # autocomplete functionality. Possibly consider algorithmically determining
   # a score for artist names and prefixes?
+  AC_FETCH_NUM = 10
   MIN_AC_CACHE = 10
   MIN_AC_RESULTS = 5
 
@@ -367,6 +368,7 @@ class ArtistName(CachedModel):
       super(ArtistName, self).__init__(artist_name=artist_name, **kwds)
       return
 
+  @property
   def artist_name(self):
     return self.raw.artist_name
   @property
@@ -460,80 +462,80 @@ class ArtistName(CachedModel):
   @classmethod
   def autocomplete(cls, prefix):
     prefix = prefix.lower().strip()
-    # First, see if we have anything already cached for us in memstore.
-    # We start with the most specific prefix, and widen our search
-    cache_prefix = prefix
-    cached_results = None
-    perfect_hit = True
-    while cached_results is None:
-      if len(cache_prefix) > 0:
-        cached_results = cls.cache_get(cls.COMPLETE %cache_prefix)
-        if cached_results is None:
-          cache_prefix = cache_prefix[:-1]
-          perfect_hit = False
+
+    # Go into memory and grab all (some?) of the caches for this
+    # prefix and earlier
+    cache_list = [SetQueryCache.fetch(cls.COMPLETE %prefix[:i+1]) for
+                  i in range(len(prefix))]
+
+    best_data = set()
+    for prelen, cached_query in enumerate(cache_list):
+      if len(cached_query) > 0:
+        best_data = cached_query.results
       else:
-        cached_results = {"recache_count": -1,
-                          "max_results": False,
-                          "artists": None,}
+        best_data = set(filter(lambda an: ArtistName.get(an)
+                               .has_prefix(prefix[:prelen+1]), best_data))
+        cached_query.set(best_data)
+        cached_query.save()
 
-    # If we have a sufficient number of cached results OR we
-    #    have all possible results, search in 'em.
-    logging.debug(cache_prefix)
-    logging.debug(cached_results)
-    logging.debug(perfect_hit)
-    if (cached_results["recache_count"] >= 0 and
-        (cached_results["max_results"] or
-         len(cached_results["artists"]) >= cls.MIN_AC_CACHE)):
-      logging.debug("Trying to use cached results")
+    cached = cache_list.pop() # Get the cache for the relevant prefix
+    if cached.need_fetch(cls.AC_FETCH_NUM):
+      # We have to fetch some keys from the datastore
+      if cached.cursor is None:
+        cached.cursor = {'lower': None, 'search': None}
+      try:
+        # Try to continue an older query
+        num = cls.AC_FETCH_NUM - len(cached)
+        lower_query = RawArtistName.query().filter(
+          ndb.AND(RawArtistName.lowercase_name >= prefix,
+                  RawArtistName.lowercase_name < (prefix + u"\ufffd")))
+        search_query = RawArtistName.query().filter(
+          ndb.AND(RawArtistName.search_name >= prefix,
+                  RawArtistName.search_name < (prefix + u"\ufffd")))
+        lower_raw_artists, lower_cursor, l_more = lower_query.fetch_page(
+          num, start_cursor=cached.cursor['lower'])
+        search_raw_artists, search_cursor, s_more = search_query.fetch_page(
+          num, start_cursor=cached.cursor['search'])
 
-      cache_artists = sorted(cached_results["artists"],
-                             key=lambda x: cls.get(x).search_name)
+        lower_keys = [a.key for a in lower_raw_artists]
+        raw_artists = lower_raw_artists + [a for a in search_raw_artists if
+                                           a.key not in lower_keys]
 
-      # If the cache is perfect (exact match!), just return it
-      if perfect_hit:
-        # There is no need to update the cache in this case.
-        logging.debug(cache_artists)
-        return cls.get(cache_artists)
+        artists = (cls.get(cached.results) +
+                   [cls(raw=raw) for raw in raw_artists])
+      except db.BadRequestError:
+        # Unable to continue the older query. Run a new one.
+        lower_query = RawArtistName.query().filter(
+          ndb.AND(RawArtistName.lowercase_name >= prefix,
+                  RawArtistName.lowercase_name < (prefix + u"\ufffd")))
+        search_query = RawArtistName.query().filter(
+          ndb.AND(RawArtistName.search_name >= prefix,
+                  RawArtistName.search_name < (prefix + u"\ufffd")))
+        lower_raw_artists, lower_cursor, l_more = lower_query.fetch_page(
+          num, start_cursor=cached.cursor['lower'])
+        search_raw_artists, search_cursor, s_more = search_query.fetch_page(
+          num, start_cursor=cached.cursor['search'])
 
-      # Otherwise we're going to have to search in the cache.
-      results = filter(lambda a: cls.get(a).has_prefix(prefix),
-                       cache_artists)
-      if cached_results["max_results"]:
-        # We're as perfect as we can be, so cache the results
-        cached_results["recache_count"] += 1
-        cached_results["artists"] = results
-        cls.cache_set(cached_results, cls.COMPLETE, prefix)
-        return cls.get(results)
-      elif len(results) > cls.MIN_AC_RESULTS:
-        if len(results) > cls.MIN_AC_CACHE:
-          cached_results["recache_count"] += 1
-          cached_results["artists"] = results
-          cls.cache_set(cached_results, cls.COMPLETE, prefix)
-          return cls.get(results)
-        return cls.get(results)
+        lower_keys = [a.key for a in lower_raw_artists]
+        raw_artists = lower_raw_artists + [a for a in search_raw_artists if
+                                           a.key not in lower_keys]
 
-    # My calculations say this uses two more Smalls than we need but... shit,
-    # last I looked it's not smalls we're running over on
-    artists_full = (RawArtistName.query()
-                    .filter(RawArtistName.lowercase_name >= prefix)
-                    .filter(RawArtistName.lowercase_name < (prefix + u"\ufffd"))
-                    .fetch(10, keys_only=True))
-    artists_sn = (RawArtistName.query()
-                  .filter(RawArtistName.search_name >= prefix)
-                  .filter(RawArtistName.search_name < (prefix + u"\ufffd"))
-                  .fetch(10, keys_only=True))
-    max_results = len(artists_full) < 10 and len(artists_sn) < 10
-    artist_dict = {}
-    all_artists = cls.get(artists_full + artists_sn)
-    for a in all_artists:
-      artist_dict[a.artist_name] = a
-    artists = []
-    for a in artist_dict:
-      artists.append(artist_dict[a])
-    artists = sorted(artists, key=lambda x: x.search_name)
+        artists = [cls(raw=raw) for raw in raw_artists]
 
-    results_dict = {"recache_count": 0,
-                    "max_results": max_results,
-                    "artists": [artist.key for artist in artists]}
-    cls.cache_set(results_dict, cls.COMPLETE, prefix)
-    return artists
+      artist_keys = set([raw.key for artist in artists])
+
+      # We've got a bunch of artistnames for this prefix, so let's
+      # update all of our cached queries: this one, and all supqueries
+      cached.extend_by(artist_keys,
+                       {'lower': lower_cursor, 'search': search_cursor},
+                       l_more or s_more)
+      cached.save()
+
+      for cached_query in reversed(cache_list):
+        cached_query.extend(artist_keys)
+        cached_query.save()
+    else:
+      # We don't have to fetch anything!
+      artists = cls.get(cached.results)
+
+    return sorted(artists, key=lambda x: x.search_name)

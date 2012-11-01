@@ -282,7 +282,7 @@ class LastCachedModel(CachedModel):
       if only_one:
         return cls.get(cached.results[-1])
 
-      rslt = cls.get(cached_keys) + last
+      rslt = (cls.get(cached_keys) + last)[:num]
       return rslt
 
   @classmethod
@@ -292,7 +292,7 @@ class LastCachedModel(CachedModel):
   # Method to add a new element to the lastcache for this class
   @classmethod
   def add_to_last_cache(cls, obj):
-    cached = cls.get_cached_query(cls.LAST)
+    cached = SortedQueryCache.fetch(cls.LAST)
     cached.ordered_unique_insert(obj.key, obj._orderby)
     cached.save()
 

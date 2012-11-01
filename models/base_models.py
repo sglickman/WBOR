@@ -166,7 +166,7 @@ class QueryCache(CacheItem):
   def extend_by(self, data, cursor=None, more=True, keylen=0):
     ''' Extend the data for this QueryCache with real results from
     a datastore query'''
-    self._data.extend(data)
+    self.extend(data)
     self._cursor = cursor
     self._more = more
 
@@ -178,7 +178,7 @@ class QueryCache(CacheItem):
     return (num > len(self) and self._more) or len(self) <= 0
 
   def __getitem__(self, key):
-    return self._data[key][0]
+    return self._data[key]
 
   @property
   def results(self):
@@ -198,6 +198,22 @@ class QueryCache(CacheItem):
   def more(self, more):
     self._more = more
 
+class SetQueryCache(QueryCache):
+  def __init__(self, cachekey, data=None, cursor=None, more=True, keylen=0,
+               sort_fn=None):
+    if data is None: data = set()
+    super(SetQueryCache, self).__init__(cachekey, data=data, cursor=cursor,
+                                     more=more, keylen=keylen)
+
+  def append(self, key):
+    self._data.add(key)
+  def prepend(self, key):
+    """We're dealing with sets, so prepending and appending are the same"""
+    self.append(key)
+
+  def extend(self, data):
+    self._data |= data
+
 class SortedQueryCache(QueryCache):
   def __init__(self, cachekey, data=None, cursor=None, more=True, keylen=0,
                sort_fn=None):
@@ -205,12 +221,16 @@ class SortedQueryCache(QueryCache):
     super(SortedQueryCache, self).__init__(cachekey, data=data, cursor=cursor,
                                            more=more, keylen=keylen)
 
+  def __getitem__(self, key):
+    return self._data[key][0]
+
   def ordered_unique_insert(self, new_key, new_val):
     """Run through data until we find where to add the new key. Don't
     add the key if no spot is found"""
     for i, (key, val) in enumerate(self._data):
-      if new_val > val:
-        self._data.insert(i, (new_key, new_val))
+      if new_val >= val:
+        if key != new_key:
+          self._data.insert(i, (new_key, new_val))
         break
 
   @property
