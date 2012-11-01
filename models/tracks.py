@@ -51,7 +51,8 @@ class Album(CachedModel):
       'cover_large_key': str_or_none(self.cover_large_key),
     }
 
-  def __init__(self, raw=None, raw_key=None, title=None, artist=None, tracks=None,
+  def __init__(self, raw=None, raw_key=None, title=None,
+               artist=None, tracks=None,
                add_date=None, asin=None,
                cover_small=None, cover_large= None, is_new=True,
                key=None, **kwds):
@@ -82,7 +83,7 @@ class Album(CachedModel):
                                 songList=tracks,
                                 cover_small=cover_small,
                                 cover_large=cover_large,
-                                asin=asin
+                                asin=asin,
                                 **kwds)
 
   # Right now, creating an album creates a bunch of new Songs on the spot
@@ -92,18 +93,19 @@ class Album(CachedModel):
   @classmethod
   def new(cls, title, artist, tracks,
           add_date=None, asin=None,
-          cover_small=None, cover_large= None, is_new=True,
+          cover_small=None, cover_large=None, is_new=True,
           key=None, **kwds):
-    return Album(title=title, artist=artist, tracks=tracks,
-                 add_date=add_date, asin=asin, cover_small=cover_small,
-                 is_new=is_new, key=key, **kwds)
+    return cls(title=title, artist=artist, tracks=tracks,
+               add_date=add_date, asin=asin, cover_small=cover_small,
+               cover_large=cover_large,
+               is_new=is_new, key=key, **kwds)
 
-  @ndb.transactional
   @staticmethod
+  @ndb.transactional
   def _put_tracks(tracks, artist, album_key):
     tracks = [Song(title=trackname,
                    artist=artist,
-                   album=key,).put() for trackname in tracks]
+                   album=album_key,).put() for trackname in tracks]
     return tracks
 
 
@@ -310,7 +312,6 @@ class Song(CachedModel):
           title=None, order=None,
           num=-1, one_key=False):
     if keys is not None:
-      logging.error(keys)
       return super(Song, cls).get(keys, one_key=one_key)
 
     keys = cls.get_key(title=title, order=order, num=num)
@@ -348,7 +349,7 @@ class ArtistName(CachedModel):
 
   ## Functions for getting and setting Artists,
   ## Specifically, caching artist name autocompletion
-  COMPLETE = "artist_pref%s"
+  COMPLETE = "@artist_pref%s"
 
   # Minimum number of entries in the cache with which we would even consider
   # not rechecking the datastore. Figit with this number to balance reads and
@@ -491,7 +492,7 @@ class ArtistName(CachedModel):
         best_data = cached_query.results
       else:
         best_data = set(
-          filter(lambda an: ArtistName.name_has_prefix(an, prefix[:prelen+1]), 
+          filter(lambda an: ArtistName.name_has_prefix(an, prefix[:prelen+1]),
                  best_data))
         cached_query.set(best_data)
         cached_query.save()
@@ -509,13 +510,13 @@ class ArtistName(CachedModel):
       search_query = RawArtistName.query().filter(
         ndb.AND(RawArtistName.search_name >= prefix,
                 RawArtistName.search_name < (prefix + u"\ufffd")))
-      
+
       try:
         # Try to continue an older query
         num = cls.AC_FETCH_NUM - len(cached)
 
         lower_raw_artists, lower_cursor, l_more = lower_query.fetch_page(
-          num, start_cursor=cached.cursor['lower'], 
+          num, start_cursor=cached.cursor['lower'],
           projection=[RawArtistName.artist_name])
         search_raw_artists, search_cursor, s_more = search_query.fetch_page(
           num, start_cursor=cached.cursor['search'],
@@ -534,9 +535,9 @@ class ArtistName(CachedModel):
 
         cache_results = set()
 
-      add_artists = (set(a.artist_name for a in search_raw_artists) | 
+      add_artists = (set(a.artist_name for a in search_raw_artists) |
                      set(a.artist_name for a in lower_raw_artists))
-      artist_names = cached.results | add_artists     
+      artist_names = cached.results | add_artists
 
       # We've got a bunch of artistnames for this prefix, so let's
       # update all of our cached queries: this one, and all supqueries

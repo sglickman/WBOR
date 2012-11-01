@@ -9,7 +9,7 @@
         <h4>Select Program</h4>
         {% for p in program_list %}
         <form action='/dj/selectprogram/' method='post'>
-            <input type='hidden' name='programkey' value='{{ p.key }}' />
+            <input type='hidden' name='programkey' value='{{ p.key.urlsafe }}' />
             <input type='submit' name='submit' value='{{ p.title|escape }}' />
         </form>
         {% endfor %}

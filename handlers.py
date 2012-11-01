@@ -39,7 +39,8 @@ class BaseHandler(webapp2.RequestHandler):
     self.session.add_flash(value)
 
 class UserHandler(BaseHandler):
-  """Handler facilitating a currently logged in user (i.e. a DJ) and their programs, etc.
+  """Handler facilitating a currently logged in user (i.e. a DJ) and
+  their programs, etc.
   """
   def set_session_user(self, dj):
     """Takes a Dj model, and stores values into the session"""

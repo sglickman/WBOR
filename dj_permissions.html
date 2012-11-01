@@ -39,12 +39,12 @@
     {% for p in permissions %}
     <div class='permission'>
       <h3>{{ p.title }}</h3>
-      <ul id='{{ p.key }}'>
+      <ul id='{{ p.key.urlsafe }}'>
         {% for dj in p.dj_list %}
-        <li id='{{ p.key }}_{{ dj.key }}'>{{ dj.fullname }} <a class='delete' href='#'>[x]</a></li>
+        <li id='{{ p.key.urlsafe }}_{{ dj.key.urlsafe }}'>{{ dj.fullname }} <a class='delete' href='#'>[x]</a></li>
         {% endfor %}
       </ul>
-      <label>Add DJ: <input key='{{ p.key }}' type='text'
+      <label>Add DJ: <input key='{{ p.key.urlsafe }}' type='text'
                             class='add_perm dj-autocomplete span5' /></label>
     </div>
     {% endfor %}

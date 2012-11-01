@@ -36,7 +36,7 @@ class Program(CachedModel):
   ## Functions for getting and setting Programs
   EXPIRE = 360  # Program cache lasts for one hour maximum
 
-  BY_DJ_ENTRY = "programs_by_dj%s"
+  BY_DJ_ENTRY = "@programs_by_dj%s"
 
   def __init__(self, raw=None, raw_key=None, title="", slug="", desc="",
                dj_list=None, page_html="", current=True):

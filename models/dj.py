@@ -46,7 +46,7 @@ class Dj(CachedModel):
   _RAW = RawDj
   _RAWKIND = "Dj"
 
-  COMPLETE = "dj_pref%s"
+  COMPLETE = "@dj_pref%s"
 
   # Minimum number of entries in the cache with which we would even consider
   # not rechecking the datastore. Figit with this number to balance reads and
@@ -60,7 +60,6 @@ class Dj(CachedModel):
   EMAIL = "dj_email%s"
 
   # GAE Datastore properties
-
 
   @quantummethod
   def add_username_cache(obj, key=None, username=None):
@@ -364,7 +363,7 @@ class Dj(CachedModel):
         best_data = cached_query.results
       else:
         best_data = set(
-          filter(lambda dj: cls.get(dj).has_prefix(prefix[:prelen+1]), 
+          filter(lambda dj: cls.get(dj).has_prefix(prefix[:prelen+1]),
                  best_data))
         cached_query.set(best_data)
         cached_query.save()
@@ -385,13 +384,13 @@ class Dj(CachedModel):
       email_query = RawDj.query().filter(
         ndb.AND(RawDj.email >= prefix,
                 RawDj.email < (prefix + u"\ufffd")))
-      
+
       try:
         # Try to continue an older query
         num = cls.AC_FETCH_NUM - len(cached)
 
         lower_dj_keys, lower_cursor, l_more = lower_query.fetch_page(
-          num, start_cursor=cached.cursor['lower'], 
+          num, start_cursor=cached.cursor['lower'],
           keys_only=True)
         email_dj_keys, email_cursor, e_more = email_query.fetch_page(
           num, start_cursor=cached.cursor['email'],
@@ -413,16 +412,16 @@ class Dj(CachedModel):
 
         cache_results = set()
 
-      add_djs = (set(email_dj_keys) | 
-                 set(user_dj_keys) | 
+      add_djs = (set(email_dj_keys) |
+                 set(user_dj_keys) |
                  set(lower_dj_keys))
-      dj_keys = cached.results | add_djs     
+      dj_keys = cached.results | add_djs
 
       # We've got a bunch of artistnames for this prefix, so let's
       # update all of our cached queries: this one, and all supqueries
       cached.extend_by(add_djs,
-                       {'lower': lower_cursor, 
-                        'email': email_cursor, 
+                       {'lower': lower_cursor,
+                        'email': email_cursor,
                         'user': user_cursor},
                        l_more or e_more or u_more)
       cached.save()

@@ -25,6 +25,7 @@ from google.appengine.runtime import DeadlineExceededError
 import webapp2
 from webapp2_extras import sessions
 
+from google.appengine.ext import ndb
 from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp import util
 from google.appengine.ext.webapp import blobstore_handlers
@@ -72,7 +73,7 @@ class DjComplete(BaseHandler):
     self.response.out.write(json.dumps({
           'query': q,
           'suggestions': ["%s - %s"%(dj.fullname, dj.email) for dj in djs],
-          'data': [{'key': str(dj.key),
+          'data': [{'key': dj.key.urlsafe(),
                     'name': dj.fullname,
                     'email': dj.email} for dj in djs],}))
 
@@ -262,7 +263,6 @@ class UpdateInfo(webapp2.RequestHandler):
       last_play = recent_songs[0]
       song, program = (last_play.song,
                        last_play.program)
-      logging.error(song.raw)
       song_string = song.title
       artist_string = song.artist
       if program is not None:
@@ -315,8 +315,8 @@ class CallVoice(webapp2.RequestHandler):
 class SongList(BaseHandler):
   def get(self):
     self.response.headers["Content-Type"] = "text/json"
-    album_key = self.request.get("album_key")
-    songlist_html = memcache.get("songlist_html_" + album_key)
+    album_key = ndb.Key(urlsafe=self.request.get("album_key"))
+    songlist_html = memcache.get("songlist_html_%s" % album_key.urlsafe())
     if songlist_html:
       self.response.out.write(json.dumps({
             'songListHtml': songlist_html,
@@ -334,7 +334,7 @@ class SongList(BaseHandler):
     songlist_html = template.render(get_path("ajax_songlist.html"), {
         'songList': Song.get(album.tracklist),
         })
-    memcache.set("songlist_html_" + album_key, songlist_html)
+    memcache.set("songlist_html_%s"%album_key.urlsafe(), songlist_html)
     self.response.out.write(json.dumps({
           'songListHtml': template.render(get_path("ajax_songlist.html"), {
               'songList': Song.get(album.tracklist),

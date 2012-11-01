@@ -47,7 +47,7 @@
     <h6>{{ e.event_date|date:"F j, Y g:i a"}}</h6>
     <p>{{ e.desc }}</p>
     {% if logged_in %}
-    <a href='/dj/event/{{ e.key }}'>Edit</a>
+    <a href='/dj/event/{{ e.key.urlsafe }}'>Edit</a>
     {% endif %}
   </div>
   {% endfor %}
@@ -76,9 +76,9 @@
         {% for song in top_songs %}
         <tr>
           <td>{{forloop.counter}}.</td>
-          <td>{{ song.0.p_title }}</td>
-          <td>{{ song.0.p_artist }}</td>
-          <td><i>{{ song.0.p_album.p_title }}</i></td></tr>
+          <td>{{ song.0.title }}</td>
+          <td>{{ song.0.artist }}</td>
+          <td><i>{{ song.0.album.title }}</i></td></tr>
         {% endfor %}
         </tbody>
 	</table>{% else %}<div class='charttable'>
@@ -94,8 +94,8 @@
           {% for album in top_albums %}
           <tr>
             <td>{{forloop.counter}}.</td>
-            <td><i>{{ album.0.p_artist }}</i></td>
-            <td>{{ album.0.p_title }}</td></tr>
+            <td><i>{{ album.0.artist }}</i></td>
+            <td>{{ album.0.title }}</td></tr>
           {% endfor %}
           </tbody>
 	  </table>{% else %}<div class='charttable'>
@@ -110,9 +110,9 @@
     <ul id='albumlist'>{% for album in album_list %}
       <li>
         <a class="thumbnail" 
-           href="/albums/{{ album.cover_large_key|urlencode }}"
+           href="/albums/{{ album.cover_large_key|default_if_none:album.cover_small_key }}"
            title="{{ album.title|escape }} - {{ album.artist|escape }}">
-          <img src="/albums/{{ album.cover_small_key|urlencode }}">
+          <img src="/albums/{{ album.cover_small_key }}">
       </a>
       </li>{% endfor %}
     </ul>

@@ -23,7 +23,7 @@
     <h6>{{ e.event_date|date:"F j, Y g:i a"}}</h6>
     <p>{{ e.desc|safe }}</p>
     {% if logged_in %}
-    <a href='/dj/event/{{ e.key }}'>Edit</a>
+    <a href='/dj/event/{{ e.key.urlsafe }}'>Edit</a>
     {% endif %}
   </div>
   {% endfor %}

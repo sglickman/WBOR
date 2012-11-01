@@ -91,7 +91,7 @@
 <div class="row">
   <div class="span7">
     <h2>{% if program %}Edit{% else %}Add{% endif %} Program</h2>
-    <form action='/dj/programs/{% if program %}{{ program.key }}/{% endif %}' method='post'>
+    <form action='/dj/programs/{% if program %}{{ program.key.urlsafe }}/{% endif %}' method='post'>
     <h3>Program information</h3>
       <label for='title'>Title
       </label>
@@ -138,7 +138,7 @@
               <td id="djname">{{ dj.p_fullname }}</td>
               <td id="djemail">{{ dj.p_email }}</td>
               <input type="hidden" id="djkey" name="djkey" 
-                     value="{{ dj.key }}"></tr> 
+                     value="{{ dj.key.urlsafe }}"></tr> 
             {% endfor %}</tbody>
         </table>
       </div>
@@ -172,7 +172,7 @@
     <h3>Most recently added</h3>
     <ul>
       {% for p in new_programs %}
-      <li><a href="/dj/programs/{{ p.key }}">{{ p.p_title }}</a></li>
+      <li><a href="/dj/programs/{{ p.key.urlsafe }}">{{ p.title }}</a></li>
       {% endfor %}
     </ul>
     <h3>Search programs</h3>

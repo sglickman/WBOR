@@ -46,7 +46,7 @@ class Album(CachedModel):
 
   def to_json(self):
     return {
-      'key': str(self.key()),
+      'key': self.key.urlsafe(),
       'title': self.title,
       'artist': self.artist,
       #'add_date': self.add_date,

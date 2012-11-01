@@ -363,7 +363,6 @@ class CachedModel(object):
       return cls(raw=keys)
 
     if is_key(keys) or one_key:
-      logging.error(keys.get())
       return cls(raw=keys.get())
 
     raw_objs = filter(None, ndb.get_multi(keys))

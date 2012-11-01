@@ -200,7 +200,7 @@ class RequestPassword(UserHandler):
         return
 
       self.set_session_user(reset_dj)
-      program_list = Program.get_by_dj(dj=reset_dj)
+      program_list = Program.get_by_dj(dj=reset_dj, num=10)
 
       if not program_list:
         self.session.add_flash(
@@ -294,7 +294,7 @@ The WBOR.org Team
 class SelectProgram(UserHandler):
   @login_required
   def get(self):
-    program_list = Program.get_by_dj(dj=self.dj_key)
+    program_list = Program.get_by_dj(dj=self.dj_key, num=10)
     if len(program_list) <= 1:
       self.session.add_flash(
         "You don't have more than one radio program to choose between.")
@@ -311,8 +311,8 @@ class SelectProgram(UserHandler):
 
   @login_required
   def post(self):
-    program_key = self.request.get("programkey")
-    program = Program.get(key=program_key)
+    program_key = ndb.Key(urlsafe=self.request.get("programkey"))
+    program = Program.get(program_key)
     if not program:
       self.session.add_flash(
         "An error occurred retrieving your program.  Please try again.")
@@ -386,7 +386,7 @@ class ChartSong(UserHandler):
       if isNew > 0:
         # if it's "new", the album should be in the datastore already with
         # a valid key.
-        album = Album.get(self.request.get("album_key"))
+        album = Album.get(ndb.Key(urlsafe=self.request.get("album_key")))
         if not album:
           self.session.add_flash(
             "Missing album information for new song, please try again.")
@@ -394,7 +394,7 @@ class ChartSong(UserHandler):
           return
         # likewise, the song should be in the datastore already with a
         # valid key.
-        song = Song.get(self.request.get("song_key"))
+        song = Song.get(ndb.Key(urlsafe=self.request.get("song_key")))
         if not song:
           self.session.add_flash(
             "An error occurred trying to fetch the song, please try again.")
@@ -606,7 +606,7 @@ class ManageDJs(UserHandler):
 class EditDJ(UserHandler):
   @authorization_required("Manage DJs")
   def get(self, dj_key):
-    dj = Dj.get(dj_key)
+    dj = Dj.get(ndb.Key(urlsafe=dj_key))
     # TODO: CRITICAL: CRITICAL: Don't show every goddamn DJ
     dj_list = [] # Seriously screw this crap
     #dj_list = cache.getAllDjs()
@@ -628,7 +628,7 @@ class EditDJ(UserHandler):
 
   @authorization_required("Manage DJs")
   def post(self, dj_key):
-    dj = Dj.get(dj_key)
+    dj = Dj.get(ndb.Key(urlsafe=dj_key))
     if (dj is None) or (self.request.get("submit") != "Edit DJ" and
                         self.request.get("submit") != "Delete DJ"):
       self.session.add_flash(
@@ -693,17 +693,15 @@ class ManagePrograms(UserHandler):
       program = Program.new(title=self.request.get("title"),
                             slug=self.request.get("slug"),
                             desc=self.request.get("desc"),
-                            dj_list=self.request.get_all("djkey"),
+                            dj_list=[ndb.Key(urlsafe=key) for key in
+                                     self.request.get_all("djkey")],
                             page_html=self.request.get("page_html"),
                             current=bool(self.request.get("current")))
       program.put()
 
       self.session.add_flash(
-          "%s was successfully created associated a program. "
-          "Click <a href='/dj/programs/%s'>here</a> "
-          "to edit it (you probably want to do "
-          "this as there are no DJs on it currently)."%
-          (program.title, str(program.key)))
+          "The program %s was successfully created!"%
+          program.title)
 
     self.redirect('/dj/programs/')
 
@@ -712,7 +710,7 @@ class ManagePrograms(UserHandler):
 class EditProgram(UserHandler):
   @authorization_required("Manage Programs")
   def get(self, program_key):
-    program = Program.get(program_key)
+    program = Program.get(ndb.Key(urlsafe=program_key))
     if not program:
       self.session.add_flash(
         "Unable to find program (" + program_key + ").  Please try again.")
@@ -731,7 +729,7 @@ class EditProgram(UserHandler):
 
   @authorization_required("Manage Programs")
   def post(self, program_key):
-    program = Program.get(program_key)
+    program = Program.get(ndb.Key(urlsafe=program_key))
     if (not program or
         (self.request.get("submit") != "Edit Program" and
          self.request.get("submit") != "Delete Program")):
@@ -742,7 +740,8 @@ class EditProgram(UserHandler):
       program.slug = self.request.get("slug")
       program.desc = self.request.get("desc")
       program.page_html = self.request.get("page_html")
-      program.dj_list = self.request.get_all("djkey")
+      program.dj_list = [ndb.Key(urlsafe=key) for key in
+                         self.request.get_all("djkey")]
       program.current = bool(self.request.get("current"))
       program.put()
       self.session.add_flash(program.title + " successfully edited.")
@@ -776,28 +775,14 @@ class MySelf(UserHandler):
       self.redirect("/dj/myself")
       return
     dj.fullname = self.request.get("fullname")
-
-    email = self.request.get("email")
-    if email[-1] == "@":
-      email += "bowdoin.edu"
-    if "@" not in email:
-      email += "@bowdoin.edu"
-    duplicate_dj_key = Dj.get_key_by_email(email)
-    if duplicate_dj_key and duplicate_dj_key != dj.key:
-      error = True
-      self.session.add_flash(
-        "The email specified is already in use by another DJ.  "
-        "Please enter a unique one.")
-    dj.email = email
-
-    username = self.request.get("username")
-    duplicate_dj_key = Dj.get_key_by_username()
-    if duplicate_dj_key and duplicate_dj_key != dj.key:
-      error = True
-      self.session.add_flash(
-        "The username specified is already in use by another DJ.  "
-        "Please choose another.")
-    dj.username = username
+    try:
+      dj.email = self.request.get("email")
+      dj.username = self.request.get("username")
+    except ModelError as e:
+      # TODO: Format this better
+      self.session.add_flash(str(e))
+      self.redirect("/dj/myself")
+      return
 
     if error:
       self.redirect("/dj/myself")

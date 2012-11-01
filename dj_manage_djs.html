@@ -4,7 +4,7 @@
 <div id='edit-dj' align='center'>
   <h4>{% if dj %}Edit{% else %}Add{% endif %} DJ</h4>
   <div id='edit-dj-form'>
-    <form action='/dj/djs/{% if dj %}{{ dj.key }}/{% endif %}' method='post'>
+    <form action='/dj/djs/{% if dj %}{{ dj.key.urlsafe }}/{% endif %}' method='post'>
       
       <label for='email'>Email: </label>
       <input id='email' type='text' name='email' value='{{ dj.email|escape }}'/><br />
@@ -36,7 +36,7 @@
       <h4>Current DJs</h4>
       <ul>
             {% for dj in dj_list %}
-            <li><a href='/dj/djs/{{ dj.key }}'>{{ dj.fullname }}</a></li>
+            <li><a href='/dj/djs/{{ dj.key.urlsafe }}'>{{ dj.fullname }}</a></li>
             {% endfor %}
         </ul>
     </div>
