@@ -28,7 +28,18 @@ import logging
 import itertools
 import random
 
+from operator import itemgetter
 from itertools import izip
+
+def last_week_span(date=None):
+  if date is None:
+    date = datetime.date.today()
+  elif isinstance(date,datetime.datetime):
+    date = date.date()
+
+  before = date + datetime.timedelta(days=1)
+  after = date - datetime.timedelta(days=6)
+  return before, after
 
 class Program(CachedModel):
   _RAW = RawProgram
@@ -332,6 +343,12 @@ class Play(LastCachedModel):
   def song(self):
     return Song.get(self.song_key)
   @property
+  def album(self):
+    if self.song_key:
+      song = self.song
+      if song:
+        return song.album
+  @property
   def program(self):
     return Program.get(self.program_key)
   @property
@@ -375,18 +392,50 @@ class Play(LastCachedModel):
     self.is_fresh = is_fresh
 
   @classmethod
-  def new(cls, song, program, artist, is_fresh=True, **kwds):
+  def new(cls, song, program, artist, is_new=False, is_fresh=True, **kwds):
     return cls(song=song, program=program, artist=artist,
-               is_fresh=is_fresh)
+               is_new=is_new, is_fresh=is_fresh)
 
   def add_to_cache(self):
     super(Play, self).add_to_cache()
     try:
       if self.is_fresh:
         self.add_own_last_cache()
+        self.add_own_top_cache()
     except AttributeError:
       pass
     return self
+
+  # Method to add a new element to the lastcache for this class
+  @classmethod
+  def add_to_top_cache(cls, obj):
+    if not self.is_new:
+      return
+
+    # We can only cache so much, so only add this guy to today's last
+    # week of top plays.
+    # MAYBETODO: Use a big table with aaall songs/albums instead?
+    before, after = last_week_span()
+    if not (self.play_date < before and self.play_date >= after):
+      return
+
+    if obj.song_key is not None:
+      song_cache = CountTableCache.fetch(cls.TOP_SONGS%(before, after))
+      if len(song_cache.results) > 0:
+        song_cache.increment(obj.song_key)
+        song_cache.save()
+
+      song = obj.song
+      if song.album_key is not None:
+        album_cache = CountTableCache.fetch(cls.TOP_ALBUMS%(before, after))
+        if len(album_cach.results) > 0:
+          album_cache.increment(song.album_key)
+          album_cache.save()
+
+  # Utility method so that a last-cacheable entry knows how to
+  # lastcache itself.
+  def add_own_last_cache(self):
+    self.add_to_last_cache(self)
 
   def purge_from_cache(self):
     super(Play, self).purge_from_cache()
@@ -414,7 +463,8 @@ class Play(LastCachedModel):
                 cursor, more)
       else:
         return cls.get(keys=keys)
-    return None
+
+    return None if not page else None, cursor, more
 
   @classmethod
   def get_key(cls, before=None, after=None, program=None, is_new=None,
@@ -452,6 +502,7 @@ class Play(LastCachedModel):
       program.update_top_artists(self.artist)
       program.put()
 
+    self.is_fresh = False
     return key
 
   @classmethod
@@ -493,61 +544,72 @@ class Play(LastCachedModel):
     # Sanitize our range dates. Dates instead of times make caching
     # more convenient, and I don't even think we can ask for times
     # anyway
-    if before is None:
-      before = datetime.date.today() + datetime.timedelta(days=1)
-    else:
-      if isinstance(before, datetime.datetime):
-        before = before.date()
-      before += datetime.timedelta(days=1)
-      if after is None:
-        after = datetime.date.today() - datetime.timedelta(days=6)
-      elif isinstance(after, datetime.datetime):
-          after = after.date()
+    if before is None and after is None:
+      before, after = last_week_span()
+    elif before is None:
+      before = last_week_span(after + datetime.timedelta(6))[0]
+    elif after is None:
+      after = last_week_span(before)[1]
 
-    cached_songs = cls.get_cached_query(cls.TOP_SONGS, before, after)
-    cached_albums = cls.get_cached_query(cls.TOP_ALBUMS, before, after)
+    cached_songs = CountTableCache.fetch(cls.TOP_SONGS%(before, after))
+    cached_albums = CountTableCache.fetch(cls.TOP_ALBUMS%(before, after))
+    cached = False
 
     # If our caches exist and are sufficient
-    if not (cached_songs is None or
-            cached_songs.need_fetch(song_num) or
-            cached_albums is None or
+    if not (True or cached_songs.need_fetch(song_num) or
             cached_albums.need_fetch(album_num)):
-      songs = cached_songs.results
-      albums = cached_albums.results
+      song_counts = cached_songs.results
+      album_counts = cached_albums.results
+      cached = True
 
     else:
-      new_plays = cls.get(before=before, after=after, is_new=True, num=1000)
-      songs = {}
-      albums = {}
+      new_plays, cursor, more = cls.get(
+        before=before, after=after, is_new=True, num=1000, page=True)
+      song_counts = {}
+      album_counts = {}
 
       for play in new_plays:
         song_key = play.song_key
-        if song_key in songs:
-          songs[song_key] += 1
+        if song_key in song_counts:
+          song_counts[song_key] += 1
         else:
-          songs[song_key] = 1
+          song_counts[song_key] = 1
         if play.song_key is not None and play.song.album_key is not None:
           album_key = play.song.album_key
-          if album_key in albums:
-            albums[album_key] += 1
+          if album_key in album_counts:
+            album_counts[album_key] += 1
           else:
-            albums[album_key] = 1
+            album_counts[album_key] = 1
 
-      songs = songs.items()
-      albums = albums.items()
+    logging.error(song_counts)
 
     if not keys_only:
-      songs = [(Song.get(song), count) for song,count in songs]
-    if not keys_only:
-      albums = [(Album.get(album), count) for album,count in albums]
+      if song_counts:
+        songs = zip(Song.get(song_counts.keys()), song_counts.values())
+      else:
+        songs = []
 
-    songs = sorted(songs, key=(lambda x: x[1]), reverse=True)[:song_num]
-    albums = sorted(albums, key=(lambda x: x[1]), reverse=True)[:album_num]
+      if album_counts:
+        albums = zip(Album.get(album_counts.keys()), album_counts.values())
+      else:
+        albums = []
 
-    cached_songs
+    else:
+      songs = song_counts.iteritems()
+      albums = album_counts.iteritems()
+
+    if not cached:
+      cached_songs.set(song_counts, more)
+      cached_albums.set(album_counts, more)
+      cached_songs.save()
+      cached_albums.save()
+
+    songs = sorted(songs,
+                   key=itemgetter(1), reverse=True)[:song_num]
+    albums = sorted(albums,
+                    key=itemgetter(1), reverse=True)[:album_num]
 
     return (songs, albums)
-
 
 class Psa(LastCachedModel):
   _RAW = RawPsa
@@ -555,9 +617,8 @@ class Psa(LastCachedModel):
 
   LAST = "@@last_psas" # Tuple of last_plays_list, db_count
   LAST_ORDER = -1 # Sort from most recent backwards
-  LAST_ORDERBY =  -_RAW.play_date # How plays should be ordered in last cache
+  LAST_ORDERBY =  (_RAW.play_date,) # How plays should be ordered in last cache
   SHOW_LAST = "last_psas_show%s" #possibly keep with show instead
-  ENTRY = "psa_key%s"
 
   @classmethod
   def new(cls, desc, program, play_date=None,
@@ -586,41 +647,53 @@ class Psa(LastCachedModel):
 
   @classmethod
   def get(cls, keys=None, before=None, after=None, order=None,
-          num=-1, use_datastore=True, one_key=False):
+          num=-1, use_datastore=True, one_key=False, page=False,
+          cursor=None):
     if keys is not None:
       return super(Psa, cls).get(keys=keys,
                                  use_datastore=use_datastore,
                                  one_key=one_key)
 
-    keys = cls.get_key(before=before, after=after,
-                       order=order, num=num)
+    if page:
+      keys, cursor, more = cls.get_key(before=before, after=after,
+                                       order=order, num=num,
+                                       page=True, cursor=cursor)
+    else:
+      keys = cls.get_key(before=before, after=after,
+                         order=order, num=num, cursor=cursor)
+
     if keys is not None:
-      return cls.get(keys=keys, use_datastore=use_datastore)
-    return None
+      objs = cls.get(keys=keys, use_datastore=use_datastore)
+      if not page:
+        return objs
+      else:
+        return objs, cursor, more
+
+    return None if not page else None, cursor, more
 
   @classmethod
   def get_key(cls, before=None, after=None,
-             order=None, num=-1):
-    query = Psa.all(keys_only=True)
+             order=None, num=-1, page=False, cursor=None):
+    query = cls._RAW.query()
 
     if after is not None:
-      query = query.filter("play_date >=", after)
+      query = query.filter(cls._RAW.play_date > after)
     if before is not None:
-      query = query.filter("play_date <=", before)
+      query = query.filter(cls._RAW.play_date <= before)
     if order is not None:
-      query.order(*order)
+      query = query.order(*order)
 
     if num == -1:
-      return query.get()
-    return query.fetch(num)
-
-  def put(self):
-    super(Psa, self).put()
+      return query.get(keys_only=True, start_cursor=cursor)
+    elif not page:
+      return query.fetch(num, keys_only=True, start_cursor=cursor)
+    else:
+      return query.fetch_page(num, keys_only=True, start_cursor=cursor)
 
   @classmethod
   def delete_key(cls, key, program=None):
     if program is not None:
-      pass # Inform parent program that we're deleting this play'
+      pass # Inform parent program that we're deleting this psa'
 
     super(Psa, cls).delete_key(key=key)
 
@@ -646,5 +719,115 @@ class Psa(LastCachedModel):
     return cls.get_last(num=num, keys_only=True,
                         program=program, before=before, after=after)
 
-class StationID(object):
-  pass
+class StationID(LastCachedModel):
+  _RAW = RawStationID
+  _RAWKIND = "StationID"
+
+  LAST = "@@last_ids" # Tuple of last_plays_list, db_count
+  LAST_ORDER = -1 # Sort from most recent backwards
+  LAST_ORDERBY =  (_RAW.play_date,) # How plays should be ordered in last cache
+  SHOW_LAST = "last_ids_show%s" #possibly keep with show instead
+
+  def __init__(self, raw=None, raw_key=None,
+               program=None, play_date=None,
+               parent=None, **kwds):
+    if raw is not None:
+      super(StationID, self).__init__(raw=raw)
+      return
+    elif raw_key is not None:
+      super(StationID, self).__init__(raw_key=raw_key)
+      return
+    if parent is None:
+      parent = program
+
+    if play_date is None:
+      play_date = datetime.datetime.now()
+
+    super(StationID, self).__init__(parent=parent, program=program,
+                                    play_date=play_date, **kwds)
+
+  @classmethod
+  def new(cls, program, play_date=None):
+    return cls(program=program, play_date=play_date)
+
+  def add_to_cache(self):
+    super(StationID, self).add_to_cache()
+    try:
+      if self.is_fresh:
+        self.add_own_last_cache()
+    except AttributeError:
+      pass
+    return self
+
+  @classmethod
+  def get(cls, keys=None, before=None, after=None, order=None,
+          num=-1, use_datastore=True, one_key=False, page=False,
+          cursor=None):
+    if keys is not None:
+      return super(StationID, cls).get(keys=keys,
+                                 use_datastore=use_datastore,
+                                 one_key=one_key)
+
+    if page:
+      keys, cursor, more = cls.get_key(before=before, after=after,
+                         order=order, num=num,
+                         page=True, cursor=cursor)
+    else:
+      keys = cls.get_key(before=before, after=after,
+                         order=order, num=num, cursor=cursor)
+    if keys is not None:
+      objs = cls.get(keys=keys, use_datastore=use_datastore)
+      if not page:
+        return objs
+      else:
+        return objs, cursor, more
+
+    return None if not page else None, cursor, more
+
+  @classmethod
+  def get_key(cls, before=None, after=None,
+             order=None, num=-1, page=False, cursor=None):
+    query = cls._RAW.query()
+
+    if after is not None:
+      query = query.filter(cls._RAW.play_date > after)
+    if before is not None:
+      query = query.filter(cls._RAW.play_date <= before)
+    if order is not None:
+      query = query.order(*order)
+
+    if num == -1:
+      return query.get(keys_only=True, start_cursor=cursor)
+    elif not page:
+      return query.fetch(num, keys_only=True, start_cursor=cursor)
+    else:
+      return query.fetch_page(num, keys_only=True, start_cursor=cursor)
+
+  @classmethod
+  def delete_key(cls, key, program=None):
+    if program is not None:
+      pass # Inform parent program that we're deleting this sid'
+
+    super(StationID, cls).delete_key(key=key)
+
+  # We override the get_last method to use, e.g., the parent program
+  # in our queries
+  @classmethod
+  def get_last(cls, num=-1, keys_only=False,
+               program=None, before=None, after=None):
+    # We may want to get the last psas of a specific program
+    # Otherwise, use the already defined super method.
+    if program is None:
+      return super(StationID, cls).get_last(num=num, keys_only=keys_only,
+                                       before=before, after=after)
+
+    # TODO: Pass other parameters to program's method
+    if program is not None:
+      program = Program.as_object(program)
+      return program.get_last_ids(num=num)
+    return None if num == -1 else []
+
+  @classmethod
+  def get_last_keys(cls, num=-1, program=None, before=None, after=None):
+    return cls.get_last(num=num, keys_only=True,
+                        program=program, before=before, after=after)

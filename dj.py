@@ -348,7 +348,7 @@ class ChartSong(UserHandler):
       )
       memcache.set(memcache_key, playlist_html, 60 * 60 * 24)
 
-    last_psa = None #Psa.get_last() # cache.getLastPsa()
+    last_psa = Psa.get_last() # cache.getLastPsa()
     new_albums = None
     #new_song_div_html = memcache.get("new_song_div_html")
     album_songs = []
@@ -479,8 +479,8 @@ class ViewLogs(UserHandler):
   def get(self):
     start = datetime.datetime.now() - datetime.timedelta(weeks=2)
     end = datetime.datetime.now()
-    psas = models.getPSAsInRange(start=start, end=end)
-    ids = models.getIDsInRange(start=start, end=end)
+    psas = Psa.get_last()
+    ids = StationID.get_last()
     template_values = {
       'session': self.session,
       'flash': self.flashes,
@@ -503,8 +503,8 @@ class ViewLogs(UserHandler):
       self.redirect("/dj/logs/")
       return
     end = start + datetime.timedelta(weeks=2)
-    psas = models.getPSAsInRange(start=start, end=end)
-    ids = models.getIDsInRange(start=start, end=end)
+    psas = Psa.get(after=start, before=end) # TODO: Cache?
+    ids = StationId.get(after=start, before=end) #TODO: Cache
     template_values = {
       'session': self.session,
       'flash': self.flashes,

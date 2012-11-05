@@ -341,7 +341,7 @@ class Song(CachedModel):
     return self.raw.artist
   @property
   def album(self):
-    return self.raw.album
+    return Album.get(self.album_key)
 
 class ArtistName(CachedModel):
   _RAW = RawArtistName

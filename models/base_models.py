@@ -111,8 +111,45 @@ class CacheItem(object):
 
 class CountTableCache(CacheItem):
   ''' Represents a table of keys/values in cache '''
-  def __init__(self, cachekey, table=dict()):
+  def __init__(self, cachekey, table=None, more=True):
+    if table is None:
+      table = {}
     super(CountTableCache, self).__init__(cachekey)
+    self.set(table=table, more=more)
+
+  @classmethod
+  def fetch(cls, cachekey):
+    result = CachedModel.cache_get(cachekey)
+
+    if result is None:
+      return cls(cachekey)
+    return cls(cachekey, **result)
+
+  def save(self):
+    super(CountTableCache, self).save({'table': self._table,
+                                       'more': self._more})
+
+  def need_fetch(self, num):
+    logging.error(self._more)
+    return ((num > len(self.results)) and self._more) or len(self.results) < 1
+
+  def increment(self, key, amt=1):
+    if key in self._table: self._table[key] += amt
+    else: self._table[key] = amt
+
+  def set(self, table, more=None):
+    if more is not None:
+      self._more = more
+    self._table = table
+
+  def extend(self, keys, more=None):
+    if more is not None:
+      self._more = more
+    for key in keys: self.increment(key)
+
+  @property
+  def results(self):
+    return self._table
 
 class QueryCache(CacheItem):
   ''' An object representing a list of keys in the datastore
@@ -134,9 +171,6 @@ class QueryCache(CacheItem):
     return cls(cachekey, **result)
 
   def save(self):
-    logging.error(self._data)
-    logging.error(self._cursor)
-    logging.error(self._more)
     super(QueryCache, self).save({'data': self._data,
                                   'cursor': self._cursor,
                                   'more': self._more})

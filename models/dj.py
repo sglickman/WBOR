@@ -249,7 +249,8 @@ class Dj(CachedModel):
         return cls.add_username_cache(key, username)
       dj = cls.get(key)
       if dj is not None:
-        return dj.add_username_cache()
+        dj.add_username_cache()
+        return dj
     raise NoSuchUsername()
 
   @classmethod

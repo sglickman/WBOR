@@ -49,6 +49,7 @@ class MainPage(BaseHandler):
     end = datetime.date.today() + datetime.timedelta(days=1)
     song_num = 10
     album_num = 10
+    logging.error("Calling get top")
     top_songs, top_albums = Play.get_top(start, end, song_num, album_num)
     posts = BlogPost.get_last(num=3)
     events = [] #models.getEventsAfter(datetime.datetime.now() -
@@ -428,7 +429,7 @@ class PlaylistExport(BaseHandler):
   @login_required
   def get(self):
     import csv
-    shows = models.getPrograms()
+    shows = Program.get(num=1000)
     slug = self.request.get("show")
     datestring = self.request.get("programdate")
     selected_date = None
@@ -444,7 +445,7 @@ class PlaylistExport(BaseHandler):
         return
 
     if slug:
-      selected_program = models.getProgramBySlug(slug)
+      selected_program = Program.get_by_slug(slug)
       if not selected_program:
         self.session.add_flash("There is no program for slug %s." % slug)
         self.redirect("/")
@@ -589,7 +590,7 @@ class ContactPage(BaseHandler):
 
 class ProgramPage(BaseHandler):
   def get(self, slug):
-    program = models.getProgramBySlug(slug)
+    program = Program.get_by_slug(slug)
     posts = models.getLastPosts(1)
     if not program:
       self.session.add_flash("Invalid program slug specified.")
