@@ -38,7 +38,7 @@ from handlers import UserHandler
 from passwd_crypto import hash_password
 from slughifi import slughifi
 
-from models.base_models import (NoSuchEntry,)
+from models.base_models import (NoSuchEntry, ModelError)
 from models.dj import (Dj, Permission, InvalidLogin,
                        NoSuchUsername, NoSuchEmail)
 from models.tracks import Album, Song, ArtistName
@@ -173,7 +173,7 @@ class Login(UserHandler):
       self.redirect("/dj/")
       return
     else:
-      self.redirect("/dj/selectprogram/")
+      self.redirect("/dj/selectprogram/?skip=1")
       return
 
 # Lets a DJ reset his password (to a randomly generated code)
@@ -295,7 +295,7 @@ class SelectProgram(UserHandler):
   @login_required
   def get(self):
     program_list = Program.get_by_dj(dj=self.dj_key, num=10)
-    if len(program_list) <= 1:
+    if len(program_list) <= 1 and self.request.get("skip"):
       self.session.add_flash(
         "You don't have more than one radio program to choose between.")
       self.redirect("/dj/")
@@ -647,10 +647,14 @@ class EditDJ(UserHandler):
           return
 
       # Edit the dj
-      dj = Dj.put(fullname=fullname,
-                  email=email,
-                  username=username,
-                  password=password,)
+      dj.fullname = fullname
+      dj.email = email
+      dj.username = username
+
+      if password is not None:
+        dj.password = password
+
+      dj.put()
 
       self.session.add_flash(fullname + " has been successfully edited.")
     elif self.request.get("submit") == "Delete DJ":
@@ -690,14 +694,21 @@ class ManagePrograms(UserHandler):
         return
 
       # Set up the program entry, and then put it in the DB
-      program = Program.new(title=self.request.get("title"),
-                            slug=self.request.get("slug"),
-                            desc=self.request.get("desc"),
-                            dj_list=[ndb.Key(urlsafe=key) for key in
-                                     self.request.get_all("djkey")],
-                            page_html=self.request.get("page_html"),
-                            current=bool(self.request.get("current")))
-      program.put()
+      try:
+        program = Program.new(title=self.request.get("title"),
+                              slug=self.request.get("slug"),
+                              desc=self.request.get("desc"),
+                              dj_list=[ndb.Key(urlsafe=key) for key in
+                                       self.request.get_all("djkey")],
+                              page_html=self.request.get("page_html"),
+                              current=bool(self.request.get("current")))
+        program.put()
+      except ModelError as e:
+        self.session.add_flash(
+          "Something went wrong when creating your show. Did you include all "
+          "required fields? The error says, '%s'"%e)
+        self.redirect("/dj/programs/")
+        return
 
       self.session.add_flash(
           "The program %s was successfully created!"%

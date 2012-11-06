@@ -591,7 +591,6 @@ class ContactPage(BaseHandler):
 class ProgramPage(BaseHandler):
   def get(self, slug):
     program = Program.get_by_slug(slug)
-    posts = models.getLastPosts(1)
     if not program:
       self.session.add_flash("Invalid program slug specified.")
       self.redirect("/")
@@ -600,10 +599,8 @@ class ProgramPage(BaseHandler):
       'session': self.session,
       'flash': self.flashes,
       'program': program,
-      'djs' :  (tuple(Dj.get(dj)
-                      for dj in program.dj_list) if program.dj_list
-                else None),
-      'posts': posts,
+      'djs' :  tuple(Dj.get(program.dj_list) if program.dj_list
+                     else None),
       }
     self.response.out.write(
       template.render(get_path("show.html"), template_values))

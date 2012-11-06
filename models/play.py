@@ -47,7 +47,8 @@ class Program(CachedModel):
   ## Functions for getting and setting Programs
   EXPIRE = 360  # Program cache lasts for one hour maximum
 
-  BY_DJ_ENTRY = "@programs_by_dj%s"
+  BY_DJ_ENTRY = "@@programs_by_dj%s"
+  SLUG = "@program_slug%s"
 
   def __init__(self, raw=None, raw_key=None, title="", slug="", desc="",
                dj_list=None, page_html="", current=True):
@@ -59,8 +60,6 @@ class Program(CachedModel):
       return
 
     if dj_list is None: dj_list = []
-    if not title:
-      raise Exception("Insufficient data to create show")
 
     super(Program, self).__init__(title=title,
                                   slug=slugify(slug if slug else title),
@@ -71,11 +70,46 @@ class Program(CachedModel):
 
   @classmethod
   def new(cls, title, slug, desc, dj_list, page_html, current=True):
+    if not title:
+      raise ModelError("Insufficient data to create show")
+
     return cls(title=title, slug=slug, desc=desc, dj_list=dj_list,
                page_html=page_html, current=True)
 
   def put(self):
     return super(Program, self).put()
+
+  @quantummethod
+  def add_slug_cache(obj, key=None, slug=None):
+    key = obj.key if key is None else key
+    slug = obj.slug if slug is None else slug
+    return obj.cache_set(key, obj.SLUG, slug)
+
+  @quantummethod
+  def add_dj_cache(obj, key=None, dj_list=None):
+    key = obj.key if key is None else key
+    dj_list = obj.dj_list if dj_list is None else dj_list
+
+    if key is None or dj_list is None:
+      return
+
+    caches = [SetQueryCache.fetch(obj.BY_DJ_ENTRY % dj_key) for
+                  dj_key in dj_list]
+    for dj_cache in caches:
+      dj_cache.append(key)
+      dj_cache.save()
+
+  def add_to_cache(self):
+    super(Program, self).add_to_cache()
+    self.add_slug_cache()
+    self.add_dj_cache()
+    return self
+
+  def purge_from_cache(self):
+    super(Program, self).purge_from_cache()
+    self.purge_slug_cache()
+    self.purge_dj_cache()
+    return self
 
   @classmethod
   def get(cls, keys=None, slug=None, dj=None, order=None, num=-1,
@@ -122,7 +156,7 @@ class Program(CachedModel):
       only_one = True
       num = 1
 
-    cached = QueryCache.fetch(cls.BY_DJ_ENTRY % dj)
+    cached = SetQueryCache.fetch(cls.BY_DJ_ENTRY % dj)
 
     if cached.need_fetch(num):
       cached.set(cls.get_key(num=num), num)
@@ -133,12 +167,29 @@ class Program(CachedModel):
 
     if keys_only:
       if only_one:
-        return cached.results[-1]
-      return cached.results[:num]
+        return list(cached.results)[-1]
+      return list(cached.results)[:num]
     else:
       if only_one:
-        return cls.get(cached.results[-1])
-      return cls.get(cached.results[:num])
+        return cls.get(list(cached.results)[-1])
+      return cls.get(list(cached.results)[:num])
+
+  @classmethod
+  def get_by_slug(cls, slug, keys_only=False):
+    cached = cls.get_by_index(cls.SLUG, slug, keys_only=keys_only)
+    if cached is not None:
+      return cached
+
+    slug = slug.strip()
+    key = cls.get_key(slug=slug)
+    if key is not None:
+      if keys_only:
+        return cls.add_slug_cache(key, slug)
+      program = cls.get(key)
+      if program is not None:
+        program.add_slug_cache()
+        return program
+    raise NoSuchProgramSlug()
 
   @property
   def title(self):

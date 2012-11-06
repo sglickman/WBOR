@@ -116,16 +116,26 @@ class Album(CachedModel):
   def add_to_new_cache(cls, key, add_date=None):
     if add_date is None:
       add_date = datetime.datetime.now()
-    new_cache = cls.cache_get(cls.NEW)
-    if new_cache is not None:
-      pass
+
+    cached = SetQueryCache.fetch(cls.NEW)
+    cached.append(key)
+    cached.save()
+
+  @classmethod
+  def purge_from_new_cache(cls, key):
+    cached = SetQueryCache.fetch(cls.NEW)
+    cached.discard(key)
+    cached.save()
 
   def add_to_cache(self):
     super(Album, self).add_to_cache()
+    if self.is_new:
+      self.add_to_new_cache(self.key, add_date=self.add_date)
     return self
 
   def purge_from_cache(self):
     super(Album, self).purge_from_cache()
+    self.purge_from_new_cache(self.key)
     return self
 
   @classmethod
@@ -226,7 +236,7 @@ class Album(CachedModel):
     if num < 1:
       return None
 
-    cached = QueryCache.fetch(cls.NEW)
+    cached = SetQueryCache.fetch(cls.NEW)
     if not cached or cached.need_fetch(num):
       num_to_fetch = num - len(cached)
       keys, cursor, more = cls.get_key(is_new=True,
@@ -241,13 +251,13 @@ class Album(CachedModel):
       return []
 
     if keys_only:
-      return cached[:num]
+      return list(cached.results)[:num]
     else:
       if sort == "artist":
-        return sorted(cls.get(cached[:num]),
+        return sorted(cls.get(list(cached.results)[:num]),
                       key=lambda album: album.artist.lower())
       else:
-        return sorted(cls.get(cached[:num]),
+        return sorted(cls.get(list(cached.results)[:num]),
                       key=lambda album: album.add_date)
 
 

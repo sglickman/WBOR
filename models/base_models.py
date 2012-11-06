@@ -245,8 +245,13 @@ class SetQueryCache(QueryCache):
     """We're dealing with sets, so prepending and appending are the same"""
     self.append(key)
 
+  def remove(self, key):
+    self._data.remove(key)
+  def discard(self, key):
+    self._data.discard(key)
+
   def extend(self, data):
-    self._data |= data
+    self._data.update(data)
 
 class SortedQueryCache(QueryCache):
   def __init__(self, cachekey, data=None, cursor=None, more=True, keylen=0,

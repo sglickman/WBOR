@@ -1,50 +1,69 @@
 {% extends "base.html" %}
 
+{% block top_row %}
+<div class="span12">
+  <h1>Manage DJs</h1>
+  <hr>
+</div>
+{% endblock %}
+
 {% block left_column %}
-<div id='edit-dj' align='center'>
-  <h4>{% if dj %}Edit{% else %}Add{% endif %} DJ</h4>
-  <div id='edit-dj-form'>
+<h2>Open DJ Registration</h2>
+<form action="/dj/openregistration/" method="post">
+  <label for="numdjs">Number of DJs able to sign up</label>
+  <input id="numdjs" type="text" name="numdjs" /><br>
+    <input class="btn btn-primary" 
+           type='submit' name='submit' 
+           value="Open Registration" />
+</form>
+
+<h2>{% if dj %}Edit{% else %}Add{% endif %} DJ</h2>
     <form action='/dj/djs/{% if dj %}{{ dj.key.urlsafe }}/{% endif %}' method='post'>
       
-      <label for='email'>Email: </label>
+      <label for='email'>Email </label>
       <input id='email' type='text' name='email' value='{{ dj.email|escape }}'/><br />
       
       
-      <label for='fullname'>Full Name: </label>
+      <label for='fullname'>Full Name </label>
       <input id='fullname' type='text' name='fullname' value='{{ dj.fullname|escape }}' /><br />
       
       
-      <label for='username'>Username: </label>
+      <label for='username'>Username </label>
       <input id='username' name='username' type='text' value='{{ dj.username|escape }}'/><br />
       
       
-      <label for='password'>Change Password: </label>
+      <label for='password'>{% if dj %}Change {% endif %}Password </label>
       <input id='password' name='password' type='password'/><br />
       
-      
-      <label for='confirm'>Confirm Change Password: </label>
+      <label for='confirm'>Confirm{% if dj %} Change{% endif %} Password </label>
       <input id='confirm' name='confirm' type='password'/><br />
-
-      <input type='submit' name='submit' value="{% if dj %}Edit{% else %}Add{% endif %} DJ" />
+      
+      <div class="form-actions">
+      <input class="btn btn-primary" 
+             type='submit' name='submit' 
+             value="{% if dj %}Edit{% else %}Add{% endif %} DJ" />
       {% if dj %}
-      <input id='delete-button' type='submit' name='submit' value="Delete DJ" />
+      <input class="btn btn-danger" id='delete-button' 
+             type='submit' name='submit' value="Delete DJ" />
       {% endif %}
+      </div>
     </form>
-  </div>
-</div>
-    <div id='current-djs'>
-      <h4>Current DJs</h4>
-      <ul>
-            {% for dj in dj_list %}
-            <li><a href='/dj/djs/{{ dj.key.urlsafe }}'>{{ dj.fullname }}</a></li>
-            {% endfor %}
-        </ul>
-    </div>
+
+
 {% endblock %}
 
 {% block right_column %}
-    <div>
-        <a href='/dj/'>Return to main index</a>
-    </div>
-    {% include "last_n_posts.html" %}
+    <h2>Find a DJ</h2>
+    <h3>Most recently added</h3>
+    <ul>
+      {% for dj in new_djs %}
+      <li><a href="/dj/djs/{{ dj.key.urlsafe }}">{{ dj.fullname }}</a></li>
+      {% endfor %}
+    </ul>
+    <h3>Search DJs</h3>
+    <form class="form-search">
+      <input type="text" class="span3 search-query" 
+             placeholder="Search DJs"/>
+      <input type="button" class="btn btn-primary" value="Search!" />
+    </form>
 {% endblock %}

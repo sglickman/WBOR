@@ -111,10 +111,10 @@ class BlogPost(LastCachedModel):
     if slug is not None:
       query = query.filter(cls._RAW.slug == slug)
     if after is not None:
-      query = query.filter(cls._RAW.play_date >=
+      query = query.filter(cls._RAW.post_date >=
                            datetime.datetime.combine(after, datetime.time()))
     if before is not None:
-      query = query.filter(cls._RAW.play_date <
+      query = query.filter(cls._RAW.post_date <
                            datetime.datetime.combine(after, datetime.time()))
 
     if order is not None:
