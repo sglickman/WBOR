@@ -901,7 +901,7 @@ class EditBlogPost(UserHandler):
   def get(self, date_string, slug):
     post_date = datetime.datetime.strptime(date_string, "%Y-%m-%d")
     post = BlogPost.get_by_slug(slug, post_date=post_date)
-    if not post:
+    if post is None:
       self.session.add_flash(
           "The post you're looking for does not exist.  "
           "But you can look at actual posts below :)")

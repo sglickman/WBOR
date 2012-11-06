@@ -372,7 +372,7 @@ class Play(LastCachedModel):
   '''
   LAST = "@last_plays" # Tuple of last_plays_list, db_count
   LAST_ORDER = -1 # Sort from most recent backwards
-  LAST_ORDERBY = (_RAW.play_date,) # How plays should be ordered in last cache
+  LAST_ORDERBY = (-_RAW.play_date,) # How plays should be ordered in last cache
   SHOW_LAST = "last_plays_show%s" #possibly keep with show instead
 
   TOP_SONGS = "@top_songs_before%s_after%s"

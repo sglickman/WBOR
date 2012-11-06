@@ -13,7 +13,7 @@ from models.dj import Permission, Dj
 from models.tracks import Album, Song, ArtistName
 from models.play import Play, Program
 from models.base_models import NoSuchEntry
-from models.blog import BlogPost
+from models.blog import BlogPost, Event
 
 import amazon
 
@@ -349,7 +349,7 @@ class SongList(BaseHandler):
 class EventPage(BaseHandler):
   def get(self):
     start_date = datetime.datetime.now() - datetime.timedelta(days=2)
-    events = models.getEventsAfter(start_date)
+    events = Event.get_last(3, start_date)
     template_values = {
       'events_selected': True,
       'session': self.session,
@@ -613,44 +613,6 @@ class TestModels(BaseHandler):
     self.response.out.write(key)
     play = key.get()
     self.response.out.write(play)
-
-
-## There should never be a need to use the following handler in the future.
-# However, it remains for educational purposes.
-# Be aware that it's somewhat hackishly written
-class SecretPortCoversPage(blobstore_handlers.BlobstoreDownloadHandler):
-  def get(self):
-    cursor = self.request.get('cursor', None)
-    query = models.Album.all()
-    if cursor:
-      logging.debug("cursor get!")
-      query.with_cursor(start_cursor=cursor)
-    album = query.get()
-    if album:
-      new_cursor = query.cursor()
-      new_url = '/secret12345qwerty?cursor=%s' % new_cursor
-      album = album
-      try:
-        models.moveCoverToBlobstore(album)
-      except:
-        pass
-      self.response.out.write("""
-<html>
-<head>
-  <meta http-equiv="refresh" content="0;url=%s"/>
-</head>
-<body>
-  <h3>Update Datastore</h3>
-  <ul>
-    <li>Cursor: %s</li>
-    <li>LastCursor: %s</li>
-    <li>Updated: %s</li>
-  </ul>
-</body>
-</html>
-    """%(new_url, new_cursor, cursor, album.title))
-      return
-    self.response.out.write("Done")
 
 def profile_main():
   # This is the main function for profiling
