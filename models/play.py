@@ -95,6 +95,8 @@ class Program(CachedModel):
 
     caches = [SetQueryCache.fetch(obj.BY_DJ_ENTRY % dj_key) for
                   dj_key in dj_list]
+    logging.info(caches)
+    logging.info(dj_list)
     for dj_cache in caches:
       dj_cache.append(key)
       dj_cache.save()

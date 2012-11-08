@@ -239,6 +239,9 @@ class SetQueryCache(QueryCache):
     super(SetQueryCache, self).__init__(cachekey, data=data, cursor=cursor,
                                      more=more, keylen=keylen)
 
+  def set(self, data, **kwargs):
+    super(SetQueryCache, self).set(set(data), **kwargs)
+
   def append(self, key):
     self._data.add(key)
   def prepend(self, key):

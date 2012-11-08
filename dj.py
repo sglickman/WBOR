@@ -43,7 +43,7 @@ from models.dj import (Dj, Permission, InvalidLogin,
                        NoSuchUsername, NoSuchEmail)
 from models.tracks import Album, Song, ArtistName
 from models.play import Play, Psa, StationID, Program
-from models.blog import BlogPost
+from models.blog import BlogPost, Event
 
 from configuration import webapp2conf
 
@@ -1009,10 +1009,10 @@ class NewEvent(UserHandler):
           "mm/dd/yyyy, and an hour/minute as well." % date_string)
       self.redirect("/dj/event/")
       return
-    event = models.Event(event_date=event_date, title=title, url=url, desc=desc)
+    event = Event.new(event_date=event_date, title=title, slug=url, text=desc)
     event.put()
     self.session.add_flash("Event %s successfully created." % title)
-    self.redirect("/dj/")
+    self.redirect("/dj/event/")
 
 
 class EditEvent(UserHandler):

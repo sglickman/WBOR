@@ -52,8 +52,8 @@ class MainPage(BaseHandler):
     logging.error("Calling get top")
     top_songs, top_albums = Play.get_top(start, end, song_num, album_num)
     posts = BlogPost.get_last(num=3)
-    events = [] #models.getEventsAfter(datetime.datetime.now() -
-              #                     datetime.timedelta(days=1), 3)
+    events = Event.get_last(num=3)
+
     template_values = {
       'news_selected': True,
       'flash': self.flashes,
@@ -349,7 +349,7 @@ class SongList(BaseHandler):
 class EventPage(BaseHandler):
   def get(self):
     start_date = datetime.datetime.now() - datetime.timedelta(days=2)
-    events = Event.get_last(3, start_date)
+    events = Event.get_last(num=3)
     template_values = {
       'events_selected': True,
       'session': self.session,
