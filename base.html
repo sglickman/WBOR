@@ -313,9 +313,14 @@ function nowPlaying() {
                     </ul>
                   </li>
                   {% else %}
+                  <li><a href='/dj/signup' id="dj-signup">
+                      DJ Signup</a>
+                  </li>
                   <li><a href='/dj/login' id="dj-login"
                          data-toggle="modal">
-                      DJ Login</a>{% endif %}</li>
+                      DJ Login</a>
+                  </li>
+                  {% endif %}
                 </ul>
               </div>
             </div>
@@ -362,7 +367,8 @@ function nowPlaying() {
         <div class="row" id="flash_row">
           <div class='span12' id='msgbox'>
             {% for msg in flash %}
-            <div class='alert fade in'>
+            <div class='alert fade in 
+                 {% ifequal msg.1 "success" %}alert-success{% endifequal %}'>
               <a class="close" data-dismiss="alert" href="#">&times;</a>
               {{ msg.0|safe }}
             </div>

@@ -597,7 +597,8 @@ class ManageDJs(UserHandler):
                   password=password)
       dj.put()
 
-      self.session.add_flash(dj.fullname + " successfully added as a DJ.")
+      self.session.add_flash(dj.fullname + " successfully added as a DJ.",
+                             level="success")
       self.redirect("/dj/djs/")
 
 
