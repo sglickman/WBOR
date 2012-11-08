@@ -46,7 +46,7 @@
     {% endif %}
     <h6>{{ e.event_date|date:"F j, Y g:i a"}}</h6>
     <p>{{ e.text|safe }}</p>
-    {% if logged_in %}
+    {% if session.dj.permissions.events %}
     <a href='/dj/event/{{ e.key.urlsafe }}'>Edit</a>
     {% endif %}
   </div>

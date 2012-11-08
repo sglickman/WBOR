@@ -96,6 +96,7 @@ class MainPage(UserHandler):
   def get(self):
     djkey = self.dj_key
 
+    logging.error(self.session)
     template_values = {
       'session': self.session,
       'flashes': self.session.get_flashes(),

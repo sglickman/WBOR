@@ -23,7 +23,7 @@ class BlogPost(LastCachedModel):
   _RAW = RawBlogPost
   _RAWKIND = "BlogPost"
 
-  LAST = "last_posts"
+  LAST = "last_posts_before%s_after%s"
   LAST_ORDER = -1
   LAST_ORDERBY = (-_RAW.post_date,)
 
@@ -201,7 +201,7 @@ class Event(LastCachedModel):
   _RAW = RawEvent
   _RAWKIND = "Event"
 
-  LAST = "upcoming_events"
+  LAST = "upcoming_events_before%s_after%s"
   LAST_ORDER = -1
   LAST_ORDERBY = (-_RAW.event_date,)
 

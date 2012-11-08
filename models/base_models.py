@@ -405,7 +405,7 @@ class CachedModel(object):
       return cls(raw=keys)
 
     if is_key(keys) or one_key:
-      return cls(raw=keys.get())
+      return cls(raw=as_key(keys).get())
 
     raw_objs = filter(None, ndb.get_multi(keys))
     rslt = [cls(raw=raw) for raw in raw_objs]

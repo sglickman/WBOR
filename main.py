@@ -159,6 +159,9 @@ class Setup(BaseHandler):
                     email='seth.glickman@gmail.com', username='seth',
                     password='testme')
       seth.put()
+      hchaps = Dj.new(fullname='Harrison Chapman',
+                      email="hchaps@gmail.com", username="hchaps",
+                      password="wbor")
 
       program = Program.new(
         title='Seth\'s Show', slug='seth',
@@ -390,29 +393,27 @@ class PlaylistPage(BaseHandler):
         self.redirect("/")
         return
       if selected_date:
-        plays = models.getPlaysBetween(program=selected_program,
-                                       after=(selected_date -
-                                              datetime.timedelta(hours=24)),
-                                       before=(selected_date +
-                                               datetime.timedelta(hours=24)))
+        plays = Play.get_last(#program=selected_program,
+                              after=(selected_date -
+                                     datetime.timedelta(hours=24)),
+                              before=(selected_date +
+                                      datetime.timedelta(hours=24)),
+          num=60)
       else:
         lastplay = Play.get_last(program=selected_program, num=1)
         if lastplay:
           lastplay = lastplay[0]
           last_date = lastplay.play_date
-          plays = models.getPlaysBetween(program=selected_program,
-                                         after=(last_date -
-                                                datetime.timedelta(days=1)))
+          plays = Play.get_last(#program=selected_program,
+                                after=(last_date -
+                                       datetime.timedelta(days=1)),
+                                num=60)
         else:
           plays = []
     else:
-      if not selected_date:
-        lastplay = Play.get_last()
-        if lastplay:
-          selected_date = lastplay.play_date
 
       if selected_date:
-        plays = models.getPlaysForDate(selected_date)
+        plays = Play.get_last(before=selected_date, num=60)
       else:
         plays = Play.get_last(num=60)
 

@@ -161,7 +161,7 @@ class Program(CachedModel):
     cached = SetQueryCache.fetch(cls.BY_DJ_ENTRY % dj)
 
     if cached.need_fetch(num):
-      cached.set(cls.get_key(num=num), num)
+      cached.set(cls.get_key(dj=dj, num=num))
       cached.save()
 
     if not cached:
@@ -310,7 +310,16 @@ class LastCachedModel(CachedModel):
       only_one = True
       num = 1
 
-    cached = SortedQueryCache.fetch(cls.LAST)
+    ## I really just want this to make datetimes into dates too
+    if before is None and after is None:
+      pass
+      #before, after = last_week_span()
+    elif before is None:
+      before = last_week_span(after + datetime.timedelta(6))[0]
+    elif after is None:
+      after = last_week_span(before)[1]
+
+    cached = SortedQueryCache.fetch(cls.LAST % (before, after))
 
     last = []
     cached_keys = []
@@ -319,13 +328,15 @@ class LastCachedModel(CachedModel):
         num_to_fetch = num - len(cached)
         last, cursor, more = cls.get(num=num_to_fetch,
                                      order=cls.LAST_ORDERBY,
+                                     before=before, after=after,
                                      page=True, cursor=cached.cursor)
         cached_keys = cached.results
         cached.extend_by([(obj.key, obj._orderby) for obj in last],
                          cursor=cursor, more=more)
       except db.BadRequestError:
         last, cursor, more = cls.get(num=num, order=cls.LAST_ORDERBY,
-                                 page=True, cursor=None)
+                                     before=before, after=after,
+                                     page=True, cursor=None)
         cached_keys = []
         cached.set([(obj.key, obj._orderby) for obj in last],
                    cursor=cursor, more=more)
@@ -356,7 +367,7 @@ class LastCachedModel(CachedModel):
   # Method to add a new element to the lastcache for this class
   @classmethod
   def add_to_last_cache(cls, obj):
-    cached = SortedQueryCache.fetch(cls.LAST)
+    cached = SortedQueryCache.fetch(cls.LAST%(None, None))
     cached.ordered_unique_insert(obj.key, obj._orderby)
     cached.save()
 
@@ -372,7 +383,7 @@ class Play(LastCachedModel):
   '''A Play is an (entirely) immutable datastore object which represents
   a charted song
   '''
-  LAST = "@last_plays" # Tuple of last_plays_list, db_count
+  LAST = "@last_plays_before%s_after%s" # Tuple of last_plays_list, db_count
   LAST_ORDER = -1 # Sort from most recent backwards
   LAST_ORDERBY = (-_RAW.play_date,) # How plays should be ordered in last cache
   SHOW_LAST = "last_plays_show%s" #possibly keep with show instead
@@ -668,7 +679,7 @@ class Psa(LastCachedModel):
   _RAW = RawPsa
   _RAWKIND = "Psa"
 
-  LAST = "@@last_psas" # Tuple of last_plays_list, db_count
+  LAST = "@@last_psas_before%s_after%s" # Tuple of last_plays_list, db_count
   LAST_ORDER = -1 # Sort from most recent backwards
   LAST_ORDERBY =  (_RAW.play_date,) # How plays should be ordered in last cache
   SHOW_LAST = "last_psas_show%s" #possibly keep with show instead
@@ -776,7 +787,7 @@ class StationID(LastCachedModel):
   _RAW = RawStationID
   _RAWKIND = "StationID"
 
-  LAST = "@@last_ids" # Tuple of last_plays_list, db_count
+  LAST = "@@last_ids_before%s_after%s" # Tuple of last_plays_list, db_count
   LAST_ORDER = -1 # Sort from most recent backwards
   LAST_ORDERBY =  (_RAW.play_date,) # How plays should be ordered in last cache
   SHOW_LAST = "last_ids_show%s" #possibly keep with show instead
