@@ -677,6 +677,7 @@ class ManagePrograms(UserHandler):
       'session': self.session,
       'flash': self.flashes,
       'new_programs': new_programs,
+      'action': "programs",
     }
     self.response.out.write(
         template.render(get_path("dj_manage_programs.html"), template_values))
@@ -815,34 +816,73 @@ class MySelf(UserHandler):
 # Lets a DJ edit the description etc. of their show.
 class MyShow(UserHandler):
   @login_required
-  def get(self):
-    program = cache.getProgram(self.program_key)
+  def get(self, program_key):
+    program = Program.get(program_key if program_key else self.program_key)
+    if self.dj_key not in program.dj_list:
+      if Permission.get_by_title(
+          Permission.PROGRAM_EDIT).has_dj(self.dj_key):
+        self.session.add_flash(
+          "You have permission to edit programs, but are not a member"
+          " of the requested program, and so you have been redirected"
+          " to program management.")
+        self.redirect("/dj/programs/%s"%program_key)
+        return
+
+      self.session.add_flash(
+        "You are not a member of the program %s. You will not be able"
+        " to edit it."%program.title)
+      self.redirect("/dj/myshow/")
+      return
+
     template_values = {
+      'program_djs': [Dj.get(dj) for dj in program.dj_list],
       'session': self.session,
       'flash': self.flashes,
       'program': program,
       'posts': BlogPost.get_last(2),
+      'action': "myshow",
     }
     self.response.out.write(
       template.render(get_path("dj_myshow.html"), template_values))
 
   @login_required
-  def post(self):
-    program = cache.getProgram(self.request.get("program_key"))
+  def post(self, program_key):
+    program = None
+    if program_key:
+      program = Program.get(program_key)
     if not program:
       self.session.add_flash("Unable to find program.")
       self.redirect("/dj/myshow")
+      return
+
+    if self.dj_key not in program.dj_list:
+      if Permission.get_by_title(
+          Permission.PROGRAM_EDIT).has_dj(self.dj_key):
+        self.session.add_flash(
+          "You have permission to edit programs, but are not a member"
+          " of the requested program, and so you have been redirected"
+          " to program management.")
+        edit_rh = EditProgram.initialize(self.request, self.response)
+        edit_rh.post(program_key)
+        return
+
+      self.session.add_flash(
+        "You are not a member of the program %s. You will not be able"
+        " to edit it."%program.title)
+      self.redirect("/dj/myshow/")
       return
     slug = self.request.get("slug")
     p = Program.get_by_slug(slug)
     if p and program.key != p.key:
       self.session.add_flash("There is already a program with slug \""
                              + slug + "\".")
-      self.redirect("/dj/myshow")
+      self.redirect("/dj/myshow/%s"%program_key)
       return
     program.title = self.request.get("title")
     program.slug = self.request.get("slug")
     program.desc = self.request.get("desc")
+    program.dj_list = [ndb.Key(urlsafe=key) for key in
+                       self.request.get_all("djkey")]
     program.page_html = self.request.get("page_html")
     program.put()
     self.set_session_program(program)
@@ -1373,7 +1413,7 @@ app = webapp2.WSGIApplication([
     ('/dj/selectprogram/?', SelectProgram),
     ('/dj/logs/?', ViewLogs),
     ('/dj/permissions/?', ManagePermissions),
-    ('/dj/myshow/?', MyShow),
+    ('/dj/myshow(?:/([^/]*))?/?', MyShow),
     ('/blog/([^/]*)/([^/]*)/edit/?', EditBlogPost),
     ('/dj/newpost/?', NewBlogPost),
     ('/dj/event/?', NewEvent),

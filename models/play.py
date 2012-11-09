@@ -247,6 +247,12 @@ class Program(CachedModel):
   def get_last_plays(self, *args, **kwargs):
     return []
 
+  def __contains__(self, item):
+    dj_key = as_key(item)
+    if dj_key is not None:
+      return dj_key in self.dj_list
+    return False
+
   # This is a helper method to update which artists are recorded as
   # the most-played artists for a given program.
   # If the artist just played is already within the top 10, then
