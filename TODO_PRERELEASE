@@ -1,0 +1,10 @@
+Here's what we have to do on this branch before it is ready for deployment
+and being tested for "release" status.
+
+TODO: Finish enough of a DJ search so that manage DJs is functional
+TODO: Add last edited/added DJs to manage DJs page to fix new errors
+TODO: Implement last edited Programs in manage Programs page
+TODO: Make Programs searchable so that manage Programs is functional
+TODO: Use new DJ search functionality in manage programs instead of AC
+TODO: Cache artists on chart (i.e. port DJ AC cache functionality)
+TODO: Remove last remnants from old models (i.e. "models." calls) from main/dj
