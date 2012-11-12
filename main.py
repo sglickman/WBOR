@@ -78,6 +78,14 @@ class DjComplete(BaseHandler):
                     'name': dj.fullname,
                     'email': dj.email} for dj in djs],}))
 
+class DjSearch(BaseHandler):
+  def get(self):
+    q = self.request.get("query")
+    djs = Dj.autocomplete(q)
+    self.response.out.write(json.dumps({
+      'query': q,
+      'data': [dj.to_json() for dj in djs],}))
+
 class ArtistComplete(BaseHandler):
   def get(self):
     q = self.request.get("query")

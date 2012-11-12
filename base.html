@@ -380,6 +380,7 @@ function nowPlaying() {
           {% block top_row %}{% endblock %}
         </div>
         <div class="row">
+          {% block content_row %}
           <div class='span8'><!-- Left-hand column on front page -->
             {% block left_column %}
 
@@ -392,6 +393,7 @@ function nowPlaying() {
 
             {% endblock %}
           </div><!-- End right-hand column -->
+          {% endblock %}
         </div>
         {% endblock %}
         <footer>

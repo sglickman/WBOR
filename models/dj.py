@@ -18,11 +18,16 @@ from base_models import SetQueryCache
 from _raw_models import Dj as RawDj
 from _raw_models import Permission as RawPermission
 
+from autocomplete import (prefixize, add_to_autocomplete_caches,
+                          purge_from_autocomplete_caches)
+
 # Global python imports
 import datetime
 import random
 import string
 import logging
+
+from itertools import chain
 
 def fix_bare_email(email):
   if email[-1] == "@":
@@ -89,16 +94,54 @@ class Dj(CachedModel):
     self.purge_email_cache(self.email)
     return self
 
+  @quantummethod
+  def add_autocomplete_cache(obj, key=None,
+                             username=None, email=None, lowername=None):
+    key = obj.key if key is None else key
+    username = obj.username if username is None else username
+    email = obj.email if email is None else email
+    lowername = obj.lowername if lowername is None else lowername
+
+    if not key: return
+    lower_prefixes = set(prefixize(lowername, " ")) if lowername else set()
+    user_prefixes = set(prefixize(username)) if username else set()
+    email_prefixes = set(prefixize(email, " ")) if email else set()
+
+    add_to_autocomplete_caches(
+      key, obj.COMPLETE,
+      lower_prefixes | user_prefixes | email_prefixes)
+
+  @quantummethod
+  def purge_autocomplete_cache(obj, key=None,
+                             username=None, email=None, lowername=None):
+    key = obj.key if key is None else key
+    username = obj.username if username is None else username
+    email = obj.email if email is None else email
+    lowername = obj.lowername if lowername is None else lowername
+
+    if not key: return
+    if not key: return
+    lower_prefixes = set(prefixize(lowername, " ")) if lowername else set()
+    user_prefixes = set(prefixize(username)) if username else set()
+    email_prefixes = set(prefixize(email, " ")) if email else set()
+
+    purge_from_autocomplete_caches(
+      key, obj.COMPLETE,
+      lower_prefixes | user_prefixes | email_prefixes)
+
+
   def add_to_cache(self):
     super(Dj, self).add_to_cache()
     self.add_username_cache()
     self.add_own_email_cache()
+    self.add_autocomplete_cache()
     return self
 
   def purge_from_cache(self):
     super(Dj, self).purge_from_cache()
     self.purge_own_username_cache()
     self.purge_own_email_cache()
+    self.purge_autocomplete_cache()
     return self
 
   @classmethod
@@ -200,7 +243,9 @@ class Dj(CachedModel):
     username = username.strip()
     try:
       other = self.get_key_by_username(username)
-      if as_key(other) != as_key(self.key):
+      logging.error(username)
+      logging.error(other)
+      if other is not None and as_key(other) != as_key(self.key):
         raise ModelError("There is already a Dj with this username", other)
     except NoSuchUsername:
       pass
@@ -230,6 +275,16 @@ class Dj(CachedModel):
   @password.setter
   def password(self, password):
     self.raw.password_hash = hash_password(password)
+
+
+  def to_json(self):
+    return {
+      'key': str_or_none(self.key),
+      'name': self.name,
+      'email': self.email,
+      'username': self.username,
+    }
+
 
   # TODO: instead use paging and cursors (is that what they're called)
   # to return part of all the Djs (in case there end up being more than 1000!)

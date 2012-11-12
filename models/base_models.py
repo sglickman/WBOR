@@ -247,6 +247,8 @@ class SetQueryCache(QueryCache):
   def prepend(self, key):
     """We're dealing with sets, so prepending and appending are the same"""
     self.append(key)
+  def add(self, key):
+    self.append(key)
 
   def remove(self, key):
     self._data.remove(key)

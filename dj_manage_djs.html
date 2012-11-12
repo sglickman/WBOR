@@ -49,16 +49,24 @@
         });
 
         $("#dj-search-button").click(function(e) {
+            if ($("#dj-search-query").val().length < 1)
+                return;
+
             $.getJSON('/ajax/djcomplete',
                       {'query': $("#dj-search-query").val()},
                       function(data) {
+                          $("#dj-search-querystring").text(data["query"]);
+                          $("#dj-search-results-list").empty();
                           $.each(data["data"], function(i, dj) {
-                              $("#dj-search-results").text(dj["name"]);
-                              alert(dj["name"]);
+                              $("<li><a href='/dj/djs/"+dj["key"]+
+                                "'>"+dj["name"]+"</a></li>").appendTo(
+                                   $("#dj-search-results-list"));
                           });
+                          $("#dj-search-results").slideDown("fast");
                       });
 
         });
+        $("#dj-search-results").slideUp("fast");
 
         $("#title").focusout(function() {
             $("#title").each(function(index) {
@@ -99,7 +107,8 @@
 </div>
 {% endblock %}
 
-{% block left_column %}
+{% block content_row %}
+<div class="span7">
 <h2>Open DJ Registration</h2>
 <form action="/dj/openregistration/" method="post">
   <label for="numdjs">Number of DJs able to sign up</label>
@@ -140,11 +149,9 @@
       {% endif %}
       </div>
     </form>
+</div>
 
-
-{% endblock %}
-
-{% block right_column %}
+<div class="span5">
     <h2>Find a DJ</h2>
     <h3>Most recently added</h3>
     <ul>
@@ -159,5 +166,10 @@
       <input id="dj-search-button"
              type="button" class="btn btn-primary" value="Search!" />
     </form>
-    <div id="dj-search-results"></div>
+    <div id="dj-search-results" class="well">
+      <h4>Results for &quot;<span id="dj-search-querystring"></span>&quot;</h4>
+      <ul id="dj-search-results-list" class="nav nav-stacked nav-pills">
+      </ul>
+    </div>
+</div>
 {% endblock %}
