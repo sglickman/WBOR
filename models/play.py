@@ -690,6 +690,17 @@ class Psa(LastCachedModel):
   LAST_ORDERBY =  (_RAW.play_date,) # How plays should be ordered in last cache
   SHOW_LAST = "last_psas_show%s" #possibly keep with show instead
 
+  @property
+  def _orderby(self):
+    return self.play_date
+
+  @property
+  def program(self):
+    return Program.get(self.program_key)
+  @property
+  def play_date(self):
+    return self.raw.play_date
+
   @classmethod
   def new(cls, desc, program, play_date=None,
           parent=None, key_name=None, **kwds):
@@ -797,6 +808,17 @@ class StationID(LastCachedModel):
   LAST_ORDER = -1 # Sort from most recent backwards
   LAST_ORDERBY =  (_RAW.play_date,) # How plays should be ordered in last cache
   SHOW_LAST = "last_ids_show%s" #possibly keep with show instead
+
+  @property
+  def _orderby(self):
+    return self.play_date
+
+  @property
+  def program(self):
+    return Program.get(self.program_key)
+  @property
+  def play_date(self):
+    return self.raw.play_date
 
   def __init__(self, raw=None, raw_key=None,
                program=None, play_date=None,

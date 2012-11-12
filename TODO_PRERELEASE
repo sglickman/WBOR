@@ -8,3 +8,5 @@ TODO: Make Programs searchable so that manage Programs is functional
 TODO: Use new DJ search functionality in manage programs instead of AC
 TODO: Cache artists on chart (i.e. port DJ AC cache functionality)
 TODO: Remove last remnants from old models (i.e. "models." calls) from main/dj
+TODO: Finish implementation of StationID, PSA so that they are last cached
+TODO: Make sure "View Logs" page works

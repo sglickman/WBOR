@@ -456,9 +456,10 @@ class ChartSong(UserHandler):
       return
       # End of song charting.
     elif self.request.get("submit") == "Station ID":
+      # TODO: this seems barf-inducingly like the "wrong way" to tell this
       # If the DJ has recorded a station ID
-      station_id = models._raw_models.StationID(program=self.program_key,
-                                    play_date=datetime.datetime.now())
+      station_id = StationID.new(program=self.program_key,
+                                 play_date=datetime.datetime.now())
       station_id.put()
       self.session.add_flash("Station ID recorded.")
       self.redirect("/dj/chartsong/")
