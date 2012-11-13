@@ -349,7 +349,7 @@ class ChartSong(UserHandler):
       )
       memcache.set(memcache_key, playlist_html, 60 * 60 * 24)
 
-    last_psa = Psa.get_last() # cache.getLastPsa()
+    last_psa = Psa.get_last()
     new_albums = None
     #new_song_div_html = memcache.get("new_song_div_html")
     album_songs = []
@@ -481,8 +481,8 @@ class ViewLogs(UserHandler):
   def get(self):
     start = datetime.datetime.now() - datetime.timedelta(weeks=2)
     end = datetime.datetime.now()
-    psas = Psa.get_last()
-    ids = StationID.get_last()
+    psas = Psa.get_last(num=5)
+    ids = StationID.get_last(num=5)
     template_values = {
       'session': self.session,
       'flash': self.flashes,
@@ -1061,7 +1061,7 @@ class NewEvent(UserHandler):
 class EditEvent(UserHandler):
   @authorization_required("Manage Events")
   def get(self, event_key):
-    event = models.Event.get(event_key)
+    event = Event.get(ndb.Key(urlsafe=event_key))
     if not event:
       self.session.add_flash(
           "Unable to find the requested event.  Please try again.")
@@ -1088,7 +1088,7 @@ class EditEvent(UserHandler):
 
   @authorization_required("Manage Events")
   def post(self, event_key):
-    event = models.Event.get(self.request.get("event_key"))
+    event = Event.get(ndb.Key(urlsafe=self.request.get("event_key")))
     if not event:
       self.session.add_flash(
           "Unable to find the requested event.  Please try again.")

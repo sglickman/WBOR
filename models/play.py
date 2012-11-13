@@ -687,7 +687,7 @@ class Psa(LastCachedModel):
 
   LAST = "@@last_psas_before%s_after%s" # Tuple of last_plays_list, db_count
   LAST_ORDER = -1 # Sort from most recent backwards
-  LAST_ORDERBY =  (_RAW.play_date,) # How plays should be ordered in last cache
+  LAST_ORDERBY =  (-_RAW.play_date,) # How psas should be ordered in last cache
   SHOW_LAST = "last_psas_show%s" #possibly keep with show instead
 
   @property
@@ -695,24 +695,40 @@ class Psa(LastCachedModel):
     return self.play_date
 
   @property
+  def program_key(self):
+    return self.raw.program
+
+  @property
   def program(self):
     return Program.get(self.program_key)
   @property
   def play_date(self):
     return self.raw.play_date
+  @property
+  def desc(self):
+    return self.raw.desc
 
-  @classmethod
-  def new(cls, desc, program, play_date=None,
-          parent=None, key_name=None, **kwds):
-    if parent is None:
-      parent = program
+  def __init__(self, raw=None, raw_key=None,
+               program=None, play_date=None,
+               desc=None, parent=None, **kwds):
+    if raw is not None:
+      super(Psa, self).__init__(raw=raw)
+      return
+    elif raw_key is not None:
+      super(Psa, self).__init__(raw_key=raw_key)
+      return
+      if parent is None:
+        parent = program
 
     if play_date is None:
       play_date = datetime.datetime.now()
 
-    psa = cls(parent=parent, key_name=key_name,
-               desc=desc, program=program, play_date=play_date, **kwds)
+    super(Psa, self).__init__(desc=desc, parent=parent, program=program,
+                              play_date=play_date, **kwds)
 
+  @classmethod
+  def new(cls, desc, program, play_date=None):
+    psa = cls(desc=desc, program=program, play_date=play_date)
     psa.is_fresh = True
 
     return psa
@@ -806,12 +822,16 @@ class StationID(LastCachedModel):
 
   LAST = "@@last_ids_before%s_after%s" # Tuple of last_plays_list, db_count
   LAST_ORDER = -1 # Sort from most recent backwards
-  LAST_ORDERBY =  (_RAW.play_date,) # How plays should be ordered in last cache
+  LAST_ORDERBY =  (-_RAW.play_date,) # How plays should be ordered in last cache
   SHOW_LAST = "last_ids_show%s" #possibly keep with show instead
 
   @property
   def _orderby(self):
     return self.play_date
+
+  @property
+  def program_key(self):
+    return self.raw.program
 
   @property
   def program(self):
@@ -840,7 +860,9 @@ class StationID(LastCachedModel):
 
   @classmethod
   def new(cls, program, play_date=None):
-    return cls(program=program, play_date=play_date)
+    sid = cls(program=program, play_date=play_date)
+    sid.is_fresh = True
+    return sid
 
   def add_to_cache(self):
     super(StationID, self).add_to_cache()

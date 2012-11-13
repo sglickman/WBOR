@@ -18,8 +18,7 @@ from base_models import SetQueryCache
 from _raw_models import Dj as RawDj
 from _raw_models import Permission as RawPermission
 
-from autocomplete import (prefixize, add_to_autocomplete_caches,
-                          purge_from_autocomplete_caches)
+from autocomplete import *
 
 # Global python imports
 import datetime
@@ -111,6 +110,35 @@ class Dj(CachedModel):
       key, obj.COMPLETE,
       lower_prefixes | user_prefixes | email_prefixes)
 
+  def update_autocomplete_cache(self):
+    lower_prefixes = set(
+      prefixize(self.lowername, " ")) if self.lowername else set()
+    old_lower_prefixes = set(
+      prefixize(self.old_lowername, " ")) if self.old_lowername else set()
+    user_prefixes = set(
+      prefixize(self.username)) if self.username else set()
+    old_user_prefixes = set(
+      prefixize(self.old_username)) if self.old_username else set()
+    email_prefixes = set(
+      prefixize(self.email, " ")) if self.email else set()
+    old_email_prefixes = set(
+      prefixize(self.old_email, " ")) if self.old_email else set()
+
+    old_prefixes = (old_lower_prefixes |
+                    old_email_prefixes |
+                    old_user_prefixes)
+    new_prefixes = (lower_prefixes |
+                    user_prefixes |
+                    email_prefixes)
+    add_prefixes = (new_prefixes - old_prefixes)
+    purge_prefixes = (old_prefixes - new_prefixes)
+
+    purge_from_autocomplete_caches(
+      self.key, self.COMPLETE, purge_prefixes)
+    add_to_autocomplete_caches(
+      self.key, self.COMPLETE, add_prefixes)
+
+
   @quantummethod
   def purge_autocomplete_cache(obj, key=None,
                              username=None, email=None, lowername=None):
@@ -119,7 +147,6 @@ class Dj(CachedModel):
     email = obj.email if email is None else email
     lowername = obj.lowername if lowername is None else lowername
 
-    if not key: return
     if not key: return
     lower_prefixes = set(prefixize(lowername, " ")) if lowername else set()
     user_prefixes = set(prefixize(username)) if username else set()
@@ -198,18 +225,9 @@ class Dj(CachedModel):
     return cls(email=email, fullname=fullname, username=username,
                password=password, fix_email=fix_email)
 
-  def put(self, fullname=None, username=None, email=None, password=None,
-          fix_email=True):
-    if fullname is not None:
-      self.fullname = fullname
-    if email is not None:
-      self.email = email
-    if username is not None: # Although this should be an immutable property
-      self.username = username
-    if password is not None:
-      self.password = password
-
+  def put(self):
     # TODO: inject dj into autocompletion
+    self.update_autocomplete_cache()
 
     return super(Dj, self).put()
 
@@ -233,6 +251,7 @@ class Dj(CachedModel):
     return self.raw.lowername
   @fullname.setter
   def fullname(self, fullname):
+    self._old_lowername = self.raw.lowername
     self.raw.fullname = fullname.strip()
 
   @property
@@ -251,6 +270,7 @@ class Dj(CachedModel):
       pass
 
     self.purge_own_username_cache()
+    self._old_username = self.raw.username
     self.raw.username = username
 
   @property
@@ -267,6 +287,7 @@ class Dj(CachedModel):
       pass
 
     self.purge_own_email_cache()
+    self._old_email = self.raw.email
     self.raw.email = email
 
   @property
@@ -276,6 +297,24 @@ class Dj(CachedModel):
   def password(self, password):
     self.raw.password_hash = hash_password(password)
 
+  @property
+  def old_lowername(self):
+    try:
+      return self._old_lowername
+    except AttributeError:
+      return self.lowername
+  @property
+  def old_username(self):
+    try:
+      return self._old_username
+    except AttributeError:
+      return self.username
+  @property
+  def old_email(self):
+    try:
+      return self._old_email
+    except AttributeError:
+      return self.email
 
   def to_json(self):
     return {
@@ -491,6 +530,10 @@ class Dj(CachedModel):
 
     return cls.get(dj_keys)
 
+  # TODO: Real searching (possibly using experimental Search API)
+  @classmethod
+  def search(cls, query):
+    return cls.autocomplete(query)
 
 class Permission(CachedModel):
   _RAW = RawPermission

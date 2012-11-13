@@ -1,4 +1,9 @@
 from base_models import SetQueryCache
+from google.appengine.ext import ndb
+
+# TODO: Extend SetQueryCache so that cursor is a dict not a cursor
+class AutocompleteCache(SetQueryCache):
+  pass
 
 def prefixize(term, sep=None):
   term = term.strip().lower()
@@ -20,3 +25,8 @@ def purge_from_autocomplete_caches(key, cachekey_base, prefixes):
       cache.save()
     except KeyError:
       pass
+
+def autocomplete_query(ndbcls, ndbprop, prefix):
+  return nbscls.query().filter(
+    ndb.AND(ndbprop >= prefix,
+            ndbprop < (prefix + u"\ufffd")))
