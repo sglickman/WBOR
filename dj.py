@@ -350,6 +350,7 @@ class ChartSong(UserHandler):
       memcache.set(memcache_key, playlist_html, 60 * 60 * 24)
 
     last_psa = Psa.get_last()
+    logging.error(Play.get_last().raw)
     new_albums = None
     #new_song_div_html = memcache.get("new_song_div_html")
     album_songs = []

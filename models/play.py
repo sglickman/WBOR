@@ -356,12 +356,12 @@ class LastCachedModel(CachedModel):
 
     if keys_only:
       if only_one:
-        return cached.results[-1]
+        return cached.results[0]
 
       return cached.results
     else:
       if only_one:
-        return cls.get(cached.results[-1])
+        return cls.get(cached.results[0])
 
       rslt = (cls.get(cached_keys) + last)[:num]
       return rslt
