@@ -16,6 +16,8 @@ from _raw_models import Play as RawPlay
 from _raw_models import Psa as RawPsa
 from _raw_models import StationID as RawStationID
 
+from cache_models import NewCacheable
+
 # Local module imports
 from base_models import *
 from tracks import Album, Song
@@ -41,7 +43,8 @@ def last_week_span(date=None):
   after = date - datetime.timedelta(days=6)
   return before, after
 
-class Program(CachedModel):
+@accepts_raw
+class Program(CachedModel, NewCacheable):
   _RAW = RawProgram
 
   ## Functions for getting and setting Programs
@@ -49,16 +52,10 @@ class Program(CachedModel):
 
   BY_DJ_ENTRY = "@@programs_by_dj%s"
   SLUG = "@program_slug%s"
+  NEW = "@newest_programs"
 
-  def __init__(self, raw=None, raw_key=None, title="", slug="", desc="",
+  def __init__(self, title="", slug="", desc="",
                dj_list=None, page_html="", current=True):
-    if raw is not None:
-      super(Program, self).__init__(raw=raw)
-      return
-    elif raw_key is not None:
-      super(Program, self).__init__(raw_key=raw_key)
-      return
-
     if dj_list is None: dj_list = []
 
     super(Program, self).__init__(title=title,
@@ -105,31 +102,30 @@ class Program(CachedModel):
     super(Program, self).add_to_cache()
     self.add_slug_cache()
     self.add_dj_cache()
+    self.add_to_new_cache(self.key)
     return self
 
   def purge_from_cache(self):
     super(Program, self).purge_from_cache()
     self.purge_slug_cache()
     self.purge_dj_cache()
+    self.purge_from_new_cache(self.key)
     return self
 
   @classmethod
-  def get(cls, keys=None, slug=None, dj=None, order=None, num=-1,
-          use_datastore=True, one_key=False):
+  def get(cls, keys=None, use_datastore=True, one_key=False,
+          page=False, cursor=None, **kwargs):
     # We're getting the program by key
     if keys is not None:
       return super(Program, cls).get(keys,
                                      use_datastore=use_datastore,
                                      one_key=one_key)
 
-    # We're using a query on programs instead
-    keys = cls.get_key(slug=slug, dj=dj, order=order, num=num)
-    if keys is not None:
-      return cls.get(keys=keys, use_datastore=use_datastore)
-    return None
+    return cls._get_helper(page=page, cursor=cursor, **kwargs)
 
   @classmethod
-  def get_key(cls, slug=None, dj=None, order=None, num=-1):
+  def get_key(cls, slug=None, dj=None, order=None, num=-1,
+              page=False, cursor=None):
     query = cls._RAW.query()
 
     if slug is not None:
@@ -142,8 +138,16 @@ class Program(CachedModel):
 
     # Consider adding query caching here, if necessary
     if num == -1:
-      return query.get(keys_only=True)
-    return query.fetch(num, keys_only=True)
+      return query.get(keys_only=True, start_cursor=cursor)
+    elif not page:
+      return query.fetch(num, keys_only=True, start_cursor=cursor)
+    else:
+      return query.fetch_page(num, keys_only=True, start_cursor=cursor)
+
+  def get_last_plays(self, num=-1, keys_only=False,
+                     before=None, after=None, force_cached=False):
+    return Play.get_last(num=num, program=self, keys_only=keys_only,
+                         before=before, after=after, force_cached=force_cached)
 
   # Query-caching method if searching by dj
   @classmethod
@@ -307,7 +311,10 @@ class LastCachedModel(CachedModel):
 
   @classmethod
   def get_last(cls, num=-1, keys_only=False,
-               before=None, after=None):
+               before=None, after=None, force_cached=False,
+               cachekey=None, getargs=None):
+    if not getargs: getargs = {}
+    if not cachekey: cachekey = cls.LAST
     if num != -1 and num < 1:
       return None
 
@@ -325,31 +332,32 @@ class LastCachedModel(CachedModel):
     elif after is None:
       after = last_week_span(before)[1]
 
-    cached = SortedQueryCache.fetch(cls.LAST % (before, after))
+    cached = SortedQueryCache.fetch(cachekey % (before, after))
 
     last = []
     cached_keys = []
-    if cached.need_fetch(num):
+    if cached.need_fetch(num) and not force_cached:
       try:
         num_to_fetch = num - len(cached)
         last, cursor, more = cls.get(num=num_to_fetch,
                                      order=cls.LAST_ORDERBY,
                                      before=before, after=after,
-                                     page=True, cursor=cached.cursor)
-        cached_keys = cached.results
+                                     page=True, cursor=cached.cursor,
+                                     **getargs)
+        cached_keys = tuple(cached.results)
         cached.extend_by([(obj.key, obj._orderby) for obj in last],
                          cursor=cursor, more=more)
       except db.BadRequestError:
         last, cursor, more = cls.get(num=num, order=cls.LAST_ORDERBY,
                                      before=before, after=after,
-                                     page=True, cursor=None)
+                                     page=True, cursor=None, **getargs)
         cached_keys = []
         cached.set([(obj.key, obj._orderby) for obj in last],
                    cursor=cursor, more=more)
 
       cached.save()
     else:
-      cached_keys = cached.results
+      cached_keys = tuple(cached.results)
 
     if not cached:
       return []
@@ -367,21 +375,34 @@ class LastCachedModel(CachedModel):
       return rslt
 
   @classmethod
-  def get_last_keys(cls, num=-1, before=None, after=None):
-    return cls.get_last(num=num, before=before, after=after, keys_only=True)
+  def get_last_keys(cls, num=-1, before=None, after=None, force_cached=False):
+    return cls.get_last(num=num, before=before, after=after, keys_only=True,
+                        force_cached=force_cached)
 
   # Method to add a new element to the lastcache for this class
   @classmethod
-  def add_to_last_cache(cls, obj):
-    cached = SortedQueryCache.fetch(cls.LAST%(None, None))
+  def add_to_last_cache(cls, obj, cachekey=None):
+    if not cachekey: cachekey=cls.LAST
+    cached = SortedQueryCache.fetch(cachekey%(None, None))
     cached.ordered_unique_insert(obj.key, obj._orderby)
     cached.save()
+
+  @classmethod
+  def purge_from_last_cache(cls, key, cachekey=None):
+    if not cachekey: cachekey=cls.LAST
+    cached = SortedQueryCache.fetch(cachekey%(None, None))
+    try:
+      cached.remove(key)
+      cached.save()
+    except:
+      pass
 
   # Utility method so that a last-cacheable entry knows how to
   # lastcache itself.
   def add_own_last_cache(self):
     self.add_to_last_cache(self)
 
+@accepts_raw
 class Play(LastCachedModel):
   _RAW = RawPlay
   _RAWKIND = "Play"
@@ -392,7 +413,8 @@ class Play(LastCachedModel):
   LAST = "@last_plays_before%s_after%s" # Tuple of last_plays_list, db_count
   LAST_ORDER = -1 # Sort from most recent backwards
   LAST_ORDERBY = (-_RAW.play_date,) # How plays should be ordered in last cache
-  SHOW_LAST = "last_plays_show%s" #possibly keep with show instead
+  LAST_BY_PROGRAM = "last_plays_before%s_after%s_show%s"
+  #possibly keep with show instead
 
   TOP_SONGS = "@top_songs_before%s_after%s"
   TOP_ALBUMS = "@top_albums_before%s_after%s"
@@ -439,25 +461,22 @@ class Play(LastCachedModel):
       'play_date': time.mktime(self.play_date.utctimetuple()) * 1000
     }
 
-  def __init__(self, raw=None, song=None, program=None, artist=None,
+  def __init__(self, song=None, program=None, artist=None,
                is_new=None, play_date=None,
                parent=None,
                is_fresh=False, **kwds):
-    if raw is not None:
-      super(Play, self).__init__(raw=raw)
-    else:
-      if parent is None:
-        parent = program
+    if parent is None:
+      parent = program
 
-      if play_date is None:
-        play_date = datetime.datetime.now()
+    if play_date is None:
+      play_date = datetime.datetime.now()
 
-      super(Play, self).__init__(parent=parent,
-                                 song=as_key(song),
-                                 program=as_key(program),
-                                 artist=artist,
-                                 play_date=play_date,
-                                 isNew=is_new, **kwds)
+    super(Play, self).__init__(parent=parent,
+                               song=as_key(song),
+                               program=as_key(program),
+                               artist=artist,
+                               play_date=play_date,
+                               isNew=is_new, **kwds)
 
     self.is_fresh = is_fresh
 
@@ -506,35 +525,24 @@ class Play(LastCachedModel):
   # lastcache itself.
   def add_own_last_cache(self):
     self.add_to_last_cache(self)
+    self.add_to_last_cache(self, cachekey=self.LAST_BY_PROGRAM%
+                           ("%s", "%s", self.program_key))
 
   def purge_from_cache(self):
     super(Play, self).purge_from_cache()
-
+    self.purge_from_last_cache(self.key)
+    self.purge_from_last_cache(self.key, cachekey=self.LAST_BY_PROGRAM%
+                           ("%s", "%s", self.program_key))
     return self
 
   @classmethod
-  def get(cls, keys=None, before=None, after=None, is_new=None,
-          program=None, order=None, artist=None,
-          num=-1, page=False, cursor=None, one_key=False):
+  def get(cls, keys=None, page=False, cursor=None, one_key=False,
+          **kwargs):
     if keys is not None:
       return super(Play, cls).get(keys=keys,
                                   one_key=one_key)
 
-    keys = cls.get_key(before=before, after=after,
-                       is_new=is_new, order=order, num=num,
-                       artist=artist,
-                       program=program, page=page, cursor=cursor)
-    if page:
-      keys, cursor, more = keys
-
-    if keys is not None:
-      if page:
-        return (cls.get(keys=keys),
-                cursor, more)
-      else:
-        return cls.get(keys=keys)
-
-    return None if not page else None, cursor, more
+    return cls._get_helper(page=page, cursor=cursor, **kwargs)
 
   @classmethod
   def get_key(cls, before=None, after=None, program=None, is_new=None,
@@ -577,32 +585,42 @@ class Play(LastCachedModel):
 
   @classmethod
   def delete_key(cls, key, program=None):
-    if program is not None:
-      pass # Inform parent program that we're deleting this play'
-
+    cls.purge_from_last_cache(key)
+    cls.purge_from_last_cache(key, cachekey=cls.LAST_BY_PROGRAM%
+                              ("%s", "%s", program))
     super(Play, cls).delete_key(key=key)
 
   # We override the get_last method to use, e.g., the parent program
   # in our queries
   @classmethod
   def get_last(cls, num=-1, keys_only=False,
-               program=None, before=None, after=None):
+               program=None, before=None, after=None,
+               force_cached=False):
     # We may want to get the last plays of a specific program
     # Otherwise, use the already defined super method.
     if program is None:
       return super(Play, cls).get_last(num=num, keys_only=keys_only,
-                                       before=before, after=after)
+                                       before=before, after=after,
+                                       force_cached=force_cached)
 
     # TODO: Pass other parameters to program's method
-    program = Program.as_object(program)
+    program = as_key(program)
     if program is not None:
-      return program.get_last_plays(num=num)
+      return super(Play, cls).get_last(
+        num=num, keys_only=keys_only,
+        before=before, after=after,
+        force_cached=force_cached,
+        cachekey=cls.LAST_BY_PROGRAM%("%s","%s",program),
+        getargs={"program": program})
+
     return None if num == -1 else []
 
   @classmethod
-  def get_last_keys(cls, num=-1, program=None, before=None, after=None):
+  def get_last_keys(cls, num=-1, program=None, before=None, after=None,
+                    force_cached=None):
     return cls.get_last(num=num, keys_only=True,
-                        program=program, before=before, after=after)
+                        program=program, before=before, after=after,
+                        force_cached=force_cached)
 
   ## Custom queries pertaining to plays
 
@@ -681,6 +699,7 @@ class Play(LastCachedModel):
 
     return (songs, albums)
 
+@accepts_raw
 class Psa(LastCachedModel):
   _RAW = RawPsa
   _RAWKIND = "Psa"
@@ -708,17 +727,11 @@ class Psa(LastCachedModel):
   def desc(self):
     return self.raw.desc
 
-  def __init__(self, raw=None, raw_key=None,
+  def __init__(self,
                program=None, play_date=None,
                desc=None, parent=None, **kwds):
-    if raw is not None:
-      super(Psa, self).__init__(raw=raw)
-      return
-    elif raw_key is not None:
-      super(Psa, self).__init__(raw_key=raw_key)
-      return
-      if parent is None:
-        parent = program
+    if parent is None:
+      parent = program
 
     if play_date is None:
       play_date = datetime.datetime.now()

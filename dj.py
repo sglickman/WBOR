@@ -339,18 +339,16 @@ class ChartSong(UserHandler):
       return
 
     memcache_key = "playlist_html_%s"%self.session.get('program').get('key')
-    playlist_html = memcache.get(memcache_key)
+    playlist_html = None # memcache.get(memcache_key)
     if not playlist_html:
       playlist_html = template.render("dj_chartsong_playlist_div.html",
-        {'playlist': Play.get_last(num=50,
-                                   program=Program.get(self.program_key),
-                                   after=(datetime.date.today())),
+        {'playlist': Play.get_last(num=10,
+                                   program=self.program_key),
          }
       )
       memcache.set(memcache_key, playlist_html, 60 * 60 * 24)
 
     last_psa = Psa.get_last()
-    logging.error(Play.get_last().raw)
     new_albums = None
     #new_song_div_html = memcache.get("new_song_div_html")
     album_songs = []
@@ -425,8 +423,8 @@ class ChartSong(UserHandler):
       playlist_html = template.render(
         "dj_chartsong_playlist_div.html",
         {'playlist': Play.get_last(
-          program=self.program_key,
-          after=(datetime.datetime.now() - datetime.timedelta(days=1)))})
+          num=10,
+          program=self.program_key,)})
       memcache.set(memcache_key, playlist_html, 60 * 60 * 24)
       ArtistName.try_put(track_artist)
 
@@ -673,7 +671,7 @@ class EditDJ(UserHandler):
 class ManagePrograms(UserHandler):
   @authorization_required("Manage Programs")
   def get(self):
-    new_programs = Program.get(num=5)
+    new_programs = Program.get_new(num=5)
 
     template_values = {
       'session': self.session,
@@ -732,13 +730,14 @@ class EditProgram(UserHandler):
         "Unable to find program (" + program_key + ").  Please try again.")
       self.redirect("/dj/programs/")
     else:
-      new_programs = Program.get(num=5)
+      new_programs = Program.get_new(num=5)
       template_values = {
         'program_djs': [Dj.get(dj) for dj in program.dj_list],
         'program': program,
         'session': self.session,
         'flash': self.flashes,
-        'new_programs': new_programs
+        'new_programs': new_programs,
+        'action': "programs"
       }
       self.response.out.write(
         template.render(get_path("dj_manage_programs.html"), template_values))
@@ -1015,7 +1014,8 @@ class RemovePlay(UserHandler):
   @login_required
   def post(self):
     self.response.headers['Content-Type'] = 'text/json'
-    Play.delete_key(self.request.get("play_key"), program=self.program_key)
+    play_key = ndb.Key(urlsafe=self.request.get("play_key"))
+    Play.delete_key(play_key, program=self.program_key)
     memcache.delete("playlist_html_%s"%self.program_key)
     self.response.out.write(json.dumps({
           'status': "Successfully deleted play."

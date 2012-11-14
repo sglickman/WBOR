@@ -41,3 +41,14 @@ indexes:
   - name: program
   - name: play_date
     direction: desc
+
+- kind: Play
+  ancestor: yes
+  properties:
+  - name: play_date
+    direction: desc
+
+- kind: Program
+  properties:
+  - name: __key__
+    direction: desc

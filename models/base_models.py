@@ -187,6 +187,9 @@ class QueryCache(CacheItem):
   def prepend(self, key):
     self.insert(0, key)
 
+  def remove(self, key):
+    self._data.remove(key)
+
   def __len__(self):
     return len(self._data)
 
@@ -277,11 +280,30 @@ class SortedQueryCache(QueryCache):
           self._data.insert(i, (new_key, new_val))
         break
 
+  def remove(self, key):
+    self._data.remove(zip(*self._data)[0].index(key))
+
   @property
   def results(self):
     if self._data:
       return zip(*self._data)[0]
     return []
+
+def accepts_raw(cls):
+  old_init = cls.__init__
+  def __init__(self, raw=None, raw_key=None, **kwargs):
+    if raw is not None:
+      super(cls, self).__init__(raw=raw)
+      #if raw_cb: raw_cb()
+      return
+    elif raw_key is not None:
+      super(cls, self).__init__(raw_key=raw_key)
+      #if raw_cb: raw_cb()
+      return
+    else:
+      old_init(self, **kwargs)
+  cls.__init__ = __init__
+  return cls
 
 class CachedModel(object):
   _RAW = None
@@ -412,6 +434,24 @@ class CachedModel(object):
     raw_objs = filter(None, ndb.get_multi(keys))
     rslt = [cls(raw=raw) for raw in raw_objs]
     return rslt
+
+  @classmethod
+  def _get_helper(cls, page, cursor, **kwargs):
+    keys = cls.get_key(page=page, cursor=cursor, **kwargs)
+    if page:
+      keys, cursor, more = keys
+
+    if keys is not None:
+      if page:
+        return (cls.get(keys=keys),
+                cursor, more)
+      else:
+        return cls.get(keys=keys)
+
+    if page:
+      return None, cursor, more
+    else:
+      return None
 
   @classmethod
   def get_by_index(cls, index, *args, **kwargs):
