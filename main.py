@@ -78,6 +78,17 @@ class DjComplete(BaseHandler):
                     'name': dj.fullname,
                     'email': dj.email} for dj in djs],}))
 
+class ShowComplete(BaseHandler):
+  def get(self):
+    q = self.request.get("query")
+    djs = Program.autocomplete(q)
+    self.response.out.write(json.dumps({
+      'query': q,
+      'suggestions': ["%s - %s"%(dj.title, dj.slug) for dj in djs],
+      'data': [{'key': dj.key.urlsafe(),
+                'name': dj.title,
+                'email': dj.slug} for dj in djs],}))
+
 class DjSearch(BaseHandler):
   def get(self):
     q = self.request.get("query")
@@ -648,6 +659,7 @@ app = webapp2.WSGIApplication([
     ('/ajax/artistcomplete/?', ArtistComplete),
     ('/ajax/getSongList/?', SongList),
     ('/ajax/djcomplete/?', DjComplete),
+    ('/ajax/showcomplete/?', ShowComplete),
     ('/setup/?', Setup),
     ('/blog/([^/]*)/([^/]*)/?', BlogDisplay),
     ('/programs?/([^/]*)/?', ProgramPage),

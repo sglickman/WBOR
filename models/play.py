@@ -16,7 +16,7 @@ from _raw_models import Play as RawPlay
 from _raw_models import Psa as RawPsa
 from _raw_models import StationID as RawStationID
 
-from cache_models import NewCacheable
+from cache_models import *
 
 # Local module imports
 from base_models import *
@@ -44,7 +44,7 @@ def last_week_span(date=None):
   return before, after
 
 @accepts_raw
-class Program(CachedModel, NewCacheable):
+class Program(Searchable, NewCacheable):
   _RAW = RawProgram
 
   ## Functions for getting and setting Programs
@@ -53,6 +53,20 @@ class Program(CachedModel, NewCacheable):
   BY_DJ_ENTRY = "@@programs_by_dj%s"
   SLUG = "@program_slug%s"
   NEW = "@newest_programs"
+  COMPLETE = "@@@program_prefix%s"
+
+  AC_FETCH_NUM = 10
+  MIN_AC_CACHE = 10
+  MIN_AC_RESULTS = 5
+
+  @property
+  def _autocomplete_fields(self):
+    return set(title.lower().strip().split() + slug.split("-"))
+
+  @classmethod
+  def _autocomplete_queries(cls, prefix):
+    yield (cls._autocomplete_query(cls._RAW.title, prefix), "title")
+    yield (cls._autocomplete_query(cls._RAW.slug, prefix), "slug")
 
   def __init__(self, title="", slug="", desc="",
                dj_list=None, page_html="", current=True):
@@ -829,6 +843,7 @@ class Psa(LastCachedModel):
     return cls.get_last(num=num, keys_only=True,
                         program=program, before=before, after=after)
 
+@accepts_raw
 class StationID(LastCachedModel):
   _RAW = RawStationID
   _RAWKIND = "StationID"
@@ -853,15 +868,8 @@ class StationID(LastCachedModel):
   def play_date(self):
     return self.raw.play_date
 
-  def __init__(self, raw=None, raw_key=None,
-               program=None, play_date=None,
+  def __init__(self, program=None, play_date=None,
                parent=None, **kwds):
-    if raw is not None:
-      super(StationID, self).__init__(raw=raw)
-      return
-    elif raw_key is not None:
-      super(StationID, self).__init__(raw_key=raw_key)
-      return
     if parent is None:
       parent = program
 

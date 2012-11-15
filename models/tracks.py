@@ -369,6 +369,15 @@ class ArtistName(CachedModel):
   MIN_AC_CACHE = 10
   MIN_AC_RESULTS = 5
 
+  @property
+  def _search_fields(self):
+    return set(self.lower_name.split() + self.search_name.split())
+
+  @classmethod
+  def _search_queries(cls, prefix):
+    yield (cls._autocomplete_query(cls._RAW.search_name, prefix), "search")
+    yield (cls._autocomplete_query(cls._RAW.lower_name, prefix), "lower")
+
   def __init__(self, raw=None, raw_key=None,
                artist_name=None, **kwds):
     if raw is not None:

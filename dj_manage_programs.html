@@ -48,6 +48,46 @@
           return false;
         });
 
+        $("#dj-search-button").click(function(e) {
+            if ($("#dj-search-query").val().length < 1)
+                return;
+
+            $.getJSON('/ajax/djcomplete',
+                      {'query': $("#dj-search-query").val()},
+                      function(data) {
+                          $("#dj-search-querystring").text(data["query"]);
+                          $("#dj-search-results-list").empty();
+                          $.each(data["data"], function(i, dj) {
+                              $("<li><a href='/dj/djs/"+dj["key"]+
+                                "'>"+dj["name"]+"</a></li>").appendTo(
+                                   $("#dj-search-results-list"));
+                          });
+                          $("#dj-search-results").slideDown("fast");
+                      });
+
+        });
+        $("#dj-search-results").slideUp("fast");
+
+        $("#show-search-button").click(function(e) {
+            if ($("#show-search-query").val().length < 1)
+                return;
+
+            $.getJSON('/ajax/showcomplete',
+                      {'query': $("#show-search-query").val()},
+                      function(data) {
+                          $("#show-search-querystring").text(data["query"]);
+                          $("#show-search-results-list").empty();
+                          $.each(data["data"], function(i, show) {
+                              $("<li><a href='/show/shows/"+show["key"]+
+                                "'>"+show["name"]+"</a></li>").appendTo(
+                                   $("#show-search-results-list"));
+                          });
+                          $("#show-search-results").slideDown("fast");
+                      });
+
+        });
+        $("#show-search-results").slideUp("fast");
+
         $("#title").focusout(function() {
             $("#title").each(function(index) {
                 if($("#slug").val().length > 0) {
@@ -103,11 +143,15 @@
     </ul>
     <h3>Search programs</h3>
     <form class="form-search">
-      <input type="text" class="span3 search-query" 
-             placeholder="Search programs"/>
-      <input type="button" class="btn btn-primary" value="Search!" />
+      <input type="text" class="span3 search-query"
+             id="show-search-query" placeholder="Search Programs"/>
+      <input id="show-search-button"
+             type="button" class="btn btn-primary" value="Search!" />
     </form>
-    <div class="well" id="program-search-results" style="display: none;">
+    <div id="show-search-results" class="well">
+      <h4>Results for &quot;<span id="show-search-querystring"></span>&quot;</h4>
+      <ul id="show-search-results-list" class="nav nav-stacked nav-pills">
+      </ul>
     </div>
   </div>
 </div>

@@ -19,6 +19,7 @@ from _raw_models import Dj as RawDj
 from _raw_models import Permission as RawPermission
 
 from autocomplete import *
+from cache_models import Searchable
 
 # Global python imports
 import datetime
@@ -46,7 +47,7 @@ class NoSuchTitle(NoSuchEntry):
 class InvalidLogin(ModelError):
   pass
 
-class Dj(CachedModel):
+class Dj(Searchable):
   _RAW = RawDj
   _RAWKIND = "Dj"
 
@@ -63,7 +64,19 @@ class Dj(CachedModel):
   USERNAME = "dj_username%s"
   EMAIL = "dj_email%s"
 
-  # GAE Datastore properties
+  @property
+  def _autocomplete_fields(self):
+    for name_part in self.lowername.split():
+      yield name_part
+    for email_part in self.email.split("@"):
+      yield email_part
+    yield self.username
+
+  @classmethod
+  def _autocomplete_queries(cls, prefix):
+    yield (cls._autocomplete_query(cls._RAW.username, prefix), "user")
+    yield (cls._autocomplete_query(cls._RAW.lowername, prefix), "lower")
+    yield (cls._autocomplete_query(cls._RAW.email, prefix), "email")
 
   @quantummethod
   def add_username_cache(obj, key=None, username=None):
@@ -406,134 +419,6 @@ class Dj(CachedModel):
       dj.put()
       return dj
 
-  def has_prefix(self, prefix):
-    prefixes = prefix.split()
-
-    for name_part in self.lowername.split():
-      check_prefixes = prefixes
-      for prefix in check_prefixes:
-        if name_part.startswith(prefix):
-          prefixes.remove(prefix)
-          if len(prefixes) == 0:
-            return True
-          break
-
-    check_prefixes = prefixes
-    for prefix in check_prefixes:
-      if self.email.startswith(prefix):
-        prefixes.remove(prefix)
-        if len(prefixes) == 0:
-          return True
-        break
-
-    check_prefixes = prefixes
-    for prefix in check_prefixes:
-      if self.username.startswith(prefix):
-        prefixes.remove(prefix)
-        if len(prefixes) == 0:
-          return True
-        break
-
-    return False
-
-  # As it is now, autocomplete is a little wonky. One thing worth
-  # noting is that we search cache a bit more effectively than the
-  # datastore: for example, if you've got a cached prefix "b" and
-  # bear in heaven was there, then you're able to just search "b i
-  # h" and cut out other stragglers like "Best Band Ever". Right
-  # now, we can't search datastore this efficiently, so this is kind
-  # of hit or miss.
-  @classmethod
-  def autocomplete(cls, prefix):
-    prefix = prefix.lower().strip()
-
-    # Go into memory and grab all (some?) of the caches for this
-    # prefix and earlier
-    cache_list = [SetQueryCache.fetch(cls.COMPLETE %prefix[:i+1]) for
-                  i in range(len(prefix))]
-
-    best_data = set()
-    for prelen, cached_query in enumerate(cache_list):
-      if len(cached_query) > 0:
-        best_data = cached_query.results
-      else:
-        best_data = set(
-          filter(lambda dj: cls.get(dj).has_prefix(prefix[:prelen+1]),
-                 best_data))
-        cached_query.set(best_data)
-        cached_query.save()
-
-    cached = cache_list.pop() # Get the cache for the relevant prefix
-    if cached.need_fetch(cls.AC_FETCH_NUM):
-      # We have to fetch some keys from the datastore
-      if cached.cursor is None:
-        cached.cursor = dict.fromkeys(['lower', 'user', 'email'])
-
-      # Prep the queries
-      user_query = RawDj.query().filter(
-        ndb.AND(RawDj.username >= prefix,
-                RawDj.username < (prefix + u"\ufffd")))
-      lower_query = RawDj.query().filter(
-        ndb.AND(RawDj.lowername >= prefix,
-                RawDj.lowername < (prefix + u"\ufffd")))
-      email_query = RawDj.query().filter(
-        ndb.AND(RawDj.email >= prefix,
-                RawDj.email < (prefix + u"\ufffd")))
-
-      try:
-        # Try to continue an older query
-        num = cls.AC_FETCH_NUM - len(cached)
-
-        lower_dj_keys, lower_cursor, l_more = lower_query.fetch_page(
-          num, start_cursor=cached.cursor['lower'],
-          keys_only=True)
-        email_dj_keys, email_cursor, e_more = email_query.fetch_page(
-          num, start_cursor=cached.cursor['email'],
-          keys_only=True)
-        user_dj_keys, user_cursor, u_more = user_query.fetch_page(
-          num, start_cursor=cached.cursor['user'],
-          keys_only=True)
-
-        cache_results = cached.results
-
-      except db.BadRequestError:
-        # Unable to continue the older query. Run a new one.
-        lower_dj_keys, lower_cursor, l_more = lower_query.fetch_page(
-          num, keys_only=True)
-        email_dj_keys, email_cursor, e_more = email_query.fetch_page(
-          num, keys_only=True)
-        user_dj_keys, email_cursor, u_more = user_query.fetch_page(
-          num, keys_only=True)
-
-        cache_results = set()
-
-      add_djs = (set(email_dj_keys) |
-                 set(user_dj_keys) |
-                 set(lower_dj_keys))
-      dj_keys = cached.results | add_djs
-
-      # We've got a bunch of artistnames for this prefix, so let's
-      # update all of our cached queries: this one, and all supqueries
-      cached.extend_by(add_djs,
-                       {'lower': lower_cursor,
-                        'email': email_cursor,
-                        'user': user_cursor},
-                       l_more or e_more or u_more)
-      cached.save()
-
-      for cached_query in reversed(cache_list):
-        cached_query.extend(add_djs)
-        cached_query.save()
-    else:
-      # We don't have to fetch anything!
-      dj_keys = cached.results
-
-    return cls.get(dj_keys)
-
-  # TODO: Real searching (possibly using experimental Search API)
-  @classmethod
-  def search(cls, query):
-    return cls.autocomplete(query)
 
 class Permission(CachedModel):
   _RAW = RawPermission
