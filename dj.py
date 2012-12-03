@@ -532,7 +532,7 @@ class ManageDJs(UserHandler):
       'posts': BlogPost.get_last(num=3),
     }
     self.response.out.write(template.render(get_path("dj_manage_djs.html"),
-      template_values))
+                                            template_values))
 
   @authorization_required("Manage DJs")
   def post(self):

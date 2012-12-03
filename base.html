@@ -17,7 +17,9 @@
     <script type='text/javascript' src='/static/js/jquery.autocomplete.js'></script>
     <script type='text/javascript' src='/static/js/jquery.lightbox.js'></script>
     <script type='text/javascript' src='/static/js/jquery.tinymce.js'></script>
-    <script type='text/javascript' src='/static/js/jquery.form.js'></script>
+    <script type='text/javascript'
+            src='/static/js/jquery.form.js'></script>
+    <script type="text/javascript" src="/static/js/wbor.js"></script>
     <script type='text/javascript'>
     background = function() {
         document.body.style.background =
@@ -269,7 +271,7 @@ function nowPlaying() {
                   <li class="dropdown" id="djpanel">
                     <a href="/dj/" id="djpanel-dropdown" class="dropdown-toggle"
                        data-toggle="dropdown">
-                      <strong>DJ Panel</strong>
+                      <strong>DJ Panel</strong> ({{ session.dj.username }})
                       <b class="caret"></b>
                     </a>
                     <ul class="dropdown-menu">

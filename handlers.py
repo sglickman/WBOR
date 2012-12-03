@@ -64,6 +64,7 @@ class UserHandler(BaseHandler):
         'key' : dj.key.urlsafe(),
         'fullname' : dj.fullname,
         'lowername' : dj.lowername,
+        'username': dj.username,
         'email' : dj.email,
         'permissions' : permissions,
         }

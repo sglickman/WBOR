@@ -596,10 +596,8 @@ class ContactPage(BaseHandler):
     # TODO: Please please fix this. Although realistically it will be fixed on
     # models rework in future.
     # So general MGMT can edit contacts page
-    contacts = memcache.get("contacts_page_html")
-    if contacts is None:
-      contacts = BlogPost.get_by_slug("contacts-page")
-    cache.mcset_t(contacts, 3600, "contacts_page_html")
+    contacts = BlogPost.get_by_slug("contacts-page")
+
     template_values = {
       'contact_selected': True,
       'session': self.session,

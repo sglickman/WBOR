@@ -52,14 +52,21 @@
             if ($("#dj-search-query").val().length < 1)
                 return;
 
-            $.getJSON('/ajax/djcomplete',
-                      {'query': $("#dj-search-query").val()},
+            ajaxSearch(SEARCH_DJ,
+                      $("#dj-search-query").val(),
                       function(data) {
                           $("#dj-search-querystring").text(data["query"]);
                           $("#dj-search-results-list").empty();
                           $.each(data["data"], function(i, dj) {
-                              $("<li><a href='/dj/djs/"+dj["key"]+
-                                "'>"+dj["name"]+"</a></li>").appendTo(
+                              $("<li></li>").append(
+                                  $("<a href='#'>"+dj["name"]+"</a>").click(
+                                      function(e) {
+                                          addDjToProgram(
+                                              dj["key"],
+                                              dj["name"],
+                                              dj["email"]);
+                                      })
+                              ).appendTo(
                                    $("#dj-search-results-list"));
                           });
                           $("#dj-search-results").slideDown("fast");
@@ -72,13 +79,13 @@
             if ($("#show-search-query").val().length < 1)
                 return;
 
-            $.getJSON('/ajax/showcomplete',
-                      {'query': $("#show-search-query").val()},
+            ajaxSearch(SEARCH_SHOW,
+                      $("#show-search-query").val(),
                       function(data) {
                           $("#show-search-querystring").text(data["query"]);
                           $("#show-search-results-list").empty();
                           $.each(data["data"], function(i, show) {
-                              $("<li><a href='/show/shows/"+show["key"]+
+                              $("<li><a href='/dj/programs/"+show["key"]+
                                 "'>"+show["name"]+"</a></li>").appendTo(
                                    $("#show-search-results-list"));
                           });
@@ -148,7 +155,7 @@
       <input id="show-search-button"
              type="button" class="btn btn-primary" value="Search!" />
     </form>
-    <div id="show-search-results" class="well">
+    <div id="show-search-results" class="well" style="display: none;">
       <h4>Results for &quot;<span id="show-search-querystring"></span>&quot;</h4>
       <ul id="show-search-results-list" class="nav nav-stacked nav-pills">
       </ul>
