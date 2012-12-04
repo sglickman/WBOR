@@ -25,8 +25,25 @@ from main import app as main_app
 #from handlers import BaseHandler
 from configuration import webapp2conf
 
+def get_session(response, app=main_app):
+  pass
+def get_response(request, app=main_app):
+  response = request.get_response(app)
+  cookies = response.headers['Set-Cookie']
+  request = Request.blank('/', headers=[('Cookie', cookies)])
+  request.app = app
+  store = sessions.SessionStore(request)
+  session = store.get_session()
+  flashes = session.get_flashes()
+  store.save_sessions(response)
+
+  return response, session, flashes
+
 
 class TestHandlers(unittest.TestCase):
+  def set_cookie(self, response):
+    self.cookies = response.headers['Set-Cookie']
+
   def setUp(self):
     self.testbed = testbed.Testbed()
     self.testbed.activate()
@@ -40,16 +57,12 @@ class TestHandlers(unittest.TestCase):
     req = Request.blank('/dj/login', POST={'username': 'seth',
                                            'password': 'testme'})
     req.method = 'POST'
-    res = req.get_response(dj_app)
+    res, self.session, flashes = get_response(req, app=dj_app)
+    print flashes
     self.cookies = res.headers['Set-Cookie']
 
   def test_logged_in(self):
-    req = Request.blank('/', headers=[('Cookie', self.cookies)])
-    req.app = main_app
-    store = sessions.SessionStore(req)
-
-    session = store.get_session()
-    self.assertEqual(session['dj']['username'], 'seth')
+    self.assertEqual(self.session['dj']['username'], 'seth')
 
   def test_add_random_djs(self):
     names = file("./names")
@@ -67,7 +80,9 @@ class TestHandlers(unittest.TestCase):
         'submit': "Add DJ"})
       req.headers['Cookie'] = self.cookies
       req.method = 'POST'
-      req.get_response(dj_app)
+      res, ses, flash = get_response(req, app=dj_app)
+      self.assertEqual(u"success", flash[0][1])
+      self.set_cookie(res)
 
     req = Request.blank('/dj/djs/')
     req.headers['Cookie'] = self.cookies
