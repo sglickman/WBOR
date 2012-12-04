@@ -9,6 +9,8 @@ from google.appengine.ext import webapp
 from google.appengine.ext import ndb
 from google.appengine.ext import testbed
 from webapp2 import Response, Request
+from webapp2_extras import sessions
+
 from models import Dj
 
 import pprint
@@ -40,7 +42,14 @@ class TestHandlers(unittest.TestCase):
     req.method = 'POST'
     res = req.get_response(dj_app)
     self.cookies = res.headers['Set-Cookie']
-    print self.cookies
+
+  def test_logged_in(self):
+    req = Request.blank('/', headers=[('Cookie', self.cookies)])
+    req.app = main_app
+    store = sessions.SessionStore(req)
+
+    session = store.get_session()
+    self.assertEqual(session['dj']['username'], 'seth')
 
   def test_add_random_djs(self):
     names = file("./names")
@@ -62,8 +71,7 @@ class TestHandlers(unittest.TestCase):
 
     req = Request.blank('/dj/djs/')
     req.headers['Cookie'] = self.cookies
-    print req
-    print req.get_response(dj_app)
+    req.get_response(dj_app)
 
     pprint.pprint([dj.raw for dj in Dj.get(num=1000)])
 
