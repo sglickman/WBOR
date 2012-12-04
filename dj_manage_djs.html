@@ -155,9 +155,7 @@
     <h2>Find a DJ</h2>
     <h3>Most recently added</h3>
     <ul>
-      {% for dj in new_djs %}
-      <li><a href="/dj/djs/{{ dj.key.urlsafe }}">{{ dj.fullname }}</a></li>
-      {% endfor %}
+      {% for dj in new_djs %}<li><a href="/dj/djs/{{ dj.key.urlsafe }}">{{ dj.fullname }}</a></li>{% endfor %}
     </ul>
     <h3>Search DJs</h3>
     <form class="form-search">

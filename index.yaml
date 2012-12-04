@@ -31,6 +31,11 @@ indexes:
   - name: slug
   - name: post_date
 
+- kind: Dj
+  properties:
+  - name: __key__
+    direction: desc
+
 - kind: Play
   properties:
   - name: isNew

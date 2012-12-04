@@ -6,9 +6,12 @@ from google.appengine.dist import use_library
 use_library('django', '1.3')
 
 from google.appengine.ext import webapp
-from google.appengine.ext import db
+from google.appengine.ext import ndb
 from google.appengine.ext import testbed
 from webapp2 import Response, Request
+from models import Dj
+
+import pprint
 
 import unittest
 
@@ -41,24 +44,28 @@ class TestHandlers(unittest.TestCase):
 
   def test_add_random_djs(self):
     names = file("./names")
+    name_pairs = [(name.strip(),
+                   (name[0] + name.split()[1]).lower().strip()) for
+                  name in names]
 
-
-    for name in names:
+    for name, uname in name_pairs:
       req = Request.blank('/dj/djs/', POST={
-        'username': 'guy',
-        'fullname': 'Guy Fieri',
-        'email': "guy",
+        'username': uname,
+        'fullname': name,
+        'email': uname,
         'password': "wbor",
         'confirm': "wbor",
         'submit': "Add DJ"})
       req.headers['Cookie'] = self.cookies
       req.method = 'POST'
-      print req.get_response(dj_app)
+      req.get_response(dj_app)
 
     req = Request.blank('/dj/djs/')
     req.headers['Cookie'] = self.cookies
     print req
     print req.get_response(dj_app)
+
+    pprint.pprint([dj.raw for dj in Dj.get(num=1000)])
 
   def tearDown(self):
     self.testbed.deactivate()

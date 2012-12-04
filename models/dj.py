@@ -19,7 +19,7 @@ from _raw_models import Dj as RawDj
 from _raw_models import Permission as RawPermission
 
 from autocomplete import *
-from cache_models import Searchable
+from cache_models import Searchable, NewCacheable
 
 # Global python imports
 import datetime
@@ -47,11 +47,12 @@ class NoSuchTitle(NoSuchEntry):
 class InvalidLogin(ModelError):
   pass
 
-class Dj(Searchable):
+class Dj(Searchable, NewCacheable):
   _RAW = RawDj
   _RAWKIND = "Dj"
 
   COMPLETE = "@dj_pref%s"
+  NEW = "dj_newest"
 
   # Minimum number of entries in the cache with which we would even consider
   # not rechecking the datastore. Figit with this number to balance reads and
@@ -175,6 +176,7 @@ class Dj(Searchable):
     self.add_username_cache()
     self.add_own_email_cache()
     self.add_autocomplete_cache()
+    self.add_to_new_cache(self.key)
     return self
 
   def purge_from_cache(self):
@@ -182,24 +184,23 @@ class Dj(Searchable):
     self.purge_own_username_cache()
     self.purge_own_email_cache()
     self.purge_autocomplete_cache()
+    self.purge_from_new_cache(self.key)
     return self
 
   @classmethod
   def get(cls, keys=None,
-          username=None, email=None, order=None,
-          num=-1, use_datastore=True, one_key=False):
+          page=False, cursor=None,
+          use_datastore=True, one_key=False, **kwargs):
     if keys is not None:
       return super(Dj, cls).get(keys,
-                                use_datastore=use_datastore, one_key=one_key)
+                                use_datastore=use_datastore,
+                                one_key=one_key)
 
-    keys = cls.get_key(username=username, email=email, order=order, num=num)
-    if keys is not None:
-      return cls.get(keys=keys, use_datastore=use_datastore)
-    return None
+    return cls._get_helper(page=page, cursor=cursor, **kwargs)
 
   @classmethod
   def get_key(cls, username=None, email=None, program=None,
-             order=None, num=-1):
+             order=None, num=-1, page=False, cursor=None):
     query = RawDj.query()
 
     if username is not None:
@@ -210,9 +211,13 @@ class Dj(Searchable):
     if order is not None:
       query = query.order(order)
 
+    # Consider adding query caching here, if necessary
     if num == -1:
-      return query.get(keys_only=True)
-    return query.fetch(num, keys_only=True)
+      return query.get(keys_only=True, start_cursor=cursor)
+    elif not page:
+      return query.fetch(num, keys_only=True, start_cursor=cursor)
+    else:
+      return query.fetch_page(num, keys_only=True, start_cursor=cursor)
 
   def __init__(self, raw=None, raw_key=None,
                email=None, fullname=None, username=None,

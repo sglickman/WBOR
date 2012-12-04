@@ -523,10 +523,10 @@ class ViewLogs(UserHandler):
 class ManageDJs(UserHandler):
   @authorization_required("Manage DJs")
   def get(self):
-    dj_list = [] #Dj.getAll() # This is TERRIBLE PRACTICE
+    new_djs = Dj.get_new(num=5)
 
     template_values = {
-      'dj_list': dj_list,
+      'new_djs': new_djs,
       'session': self.session,
       'flash': self.flashes,
       'posts': BlogPost.get_last(num=3),
