@@ -50,10 +50,7 @@ $(document).ready(function() {
         $.get("/callvoice", {
             button_id: button_id,
             cid_number: cid_number,
-            cid_name: cid_name},
-              function(data) {
-                  alert(data);
-              });
+            cid_name: cid_name});
     });
     var alertbox = $("<div class='alert fade in'></div>");
     alertbox.append($('<a class="close" data-dismiss="alert" href="#">&times;</a>'));
