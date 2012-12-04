@@ -12,8 +12,10 @@ from webapp2 import Response, Request
 from webapp2_extras import sessions
 
 from models import Dj
+import json
 
 import pprint
+import Cookie
 
 import unittest
 
@@ -29,7 +31,7 @@ def get_session(response, app=main_app):
   pass
 def get_response(request, app=main_app):
   response = request.get_response(app)
-  cookies = response.headers['Set-Cookie']
+  cookies = response.headers.get('Set-Cookie')
   request = Request.blank('/', headers=[('Cookie', cookies)])
   request.app = app
   store = sessions.SessionStore(request)
@@ -42,7 +44,7 @@ def get_response(request, app=main_app):
 
 class TestHandlers(unittest.TestCase):
   def set_cookie(self, response):
-    self.cookies = response.headers['Set-Cookie']
+    self.cookies.load(response.headers['Set-Cookie'])
 
   def setUp(self):
     self.testbed = testbed.Testbed()
@@ -51,6 +53,8 @@ class TestHandlers(unittest.TestCase):
     self.testbed.init_datastore_v3_stub()
     self.testbed.init_memcache_stub()
 
+    self.cookies = Cookie.BaseCookie()
+
     req = Request.blank('/setup')
     req.get_response(main_app)
 
@@ -58,13 +62,14 @@ class TestHandlers(unittest.TestCase):
                                            'password': 'testme'})
     req.method = 'POST'
     res, self.session, flashes = get_response(req, app=dj_app)
-    print flashes
-    self.cookies = res.headers['Set-Cookie']
+    self.set_cookie(res)
+    print self.cookies.output()
 
   def test_logged_in(self):
     self.assertEqual(self.session['dj']['username'], 'seth')
 
-  def test_add_random_djs(self):
+  def test_dj_management(self):
+    # Add some Djs
     names = file("./names")
     name_pairs = [(name.strip(),
                    (name[0] + name.split()[1]).lower().strip()) for
@@ -78,17 +83,62 @@ class TestHandlers(unittest.TestCase):
         'password': "wbor",
         'confirm': "wbor",
         'submit': "Add DJ"})
-      req.headers['Cookie'] = self.cookies
+      req.headers['Cookie'] = self.cookies.output()
       req.method = 'POST'
       res, ses, flash = get_response(req, app=dj_app)
+      # TODO: Account for (correct) failure for already-present username/email
       self.assertEqual(u"success", flash[0][1])
       self.set_cookie(res)
 
-    req = Request.blank('/dj/djs/')
-    req.headers['Cookie'] = self.cookies
-    req.get_response(dj_app)
+    # Run some searches on Djs
+    name, uname = name_pairs[1]
+    fname = name.split()[0]
 
-    pprint.pprint([dj.raw for dj in Dj.get(num=1000)])
+    for i in range(len(fname)):
+      req = Request.blank('/ajax/djcomplete?query=%s'%fname[:i+1])
+      res, ses, flash = get_response(req, app=main_app)
+      pprint.pprint(json.loads(res.body))
+
+    # Run some searches on Djs. Guy should NOT show up
+    name = "Guy Fieri"
+    fname = name.split()[0]
+
+    for i in range(len(fname)):
+      req = Request.blank('/ajax/djcomplete?query=%s'%fname[:i+1])
+      res, ses, flash = get_response(req, app=main_app)
+      pprint.pprint(json.loads(res.body))
+
+    # Modify this guy so that his name is different
+    djkey = Dj.get_key_by_username(uname)
+    req = Request.blank('/dj/djs/%s'%djkey.urlsafe(), POST={
+      'username': "gfieri",
+      'fullname': "Guy Fieri",
+      'email': "guyguy",
+      'submit': "Edit DJ"})
+    req.headers['Cookie'] = self.cookies.output()
+    req.method = 'POST'
+    res, ses, flash = get_response(req, app=dj_app)
+    print flash
+    #self.assertEqual(u"success", flash[0][1])
+    self.set_cookie(res)
+
+    # Run some searches on Djs. Our changed guy shouldn't be here.
+    name, uname = name_pairs[1]
+    fname = name.split()[0]
+
+    for i in range(len(fname)):
+      req = Request.blank('/ajax/djcomplete?query=%s'%fname[:i+1])
+      res, ses, flash = get_response(req, app=main_app)
+      pprint.pprint(json.loads(res.body))
+
+    # Run some searches on Djs. Guy should show up
+    name, uname = "Guy Fieri", "gfieri"
+    fname = name.split()[0]
+
+    for i in range(len(fname)):
+      req = Request.blank('/ajax/djcomplete?query=%s'%fname[:i+1])
+      res, ses, flash = get_response(req, app=main_app)
+      pprint.pprint(json.loads(res.body))
 
   def tearDown(self):
     self.testbed.deactivate()
