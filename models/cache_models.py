@@ -37,18 +37,26 @@ class NewCacheable(object):
     cached = QueryCache.fetch(cls.NEW)
 
     new_objs = []
-    cached_keys = []
+    cached_keys = ()
+
     if cached.need_fetch(num):
-      try:
-        num_to_fetch = num - len(cached)
+      if cached.cursor:
+        try:
+          num_to_fetch = num - len(cached)
+          new_objs,cursor,more = cls.get(order=(-ndb.Model.key),
+            num=num_to_fetch, page=True, cursor=cached.cursor)
+          cached_keys = tuple(cached.results)
+          cached.extend_by([obj.key for obj in new_objs],
+                           cursor=cursor, more=more)
+        except db.BadRequestError:
+          new_objs,cursor,more = cls.get(order=(-ndb.Model.key),
+            num=num, page=True, cursor=None)
+          cached_keys = tuple()
+          cached.set([obj.key for obj in new_objs],
+                     cursor=cursor, more=more)
+      else:
         new_objs,cursor,more = cls.get(order=(-ndb.Model.key),
-          num=num_to_fetch, page=True, cursor=cached.cursor)
-        cached_keys = tuple(cached.results)
-        cached.extend_by([obj.key for obj in new_objs],
-                         cursor=cursor, more=more)
-      except db.BadRequestError:
-        new_objs,cursor,more = cls.get(order=(-ndb.Model.key),
-          num=num, page=True, cursor=None)
+                                       num=num, page=True, cursor=None)
         cached_keys = tuple()
         cached.set([obj.key for obj in new_objs],
                    cursor=cursor, more=more)

@@ -48,7 +48,7 @@
           return false;
         });
 
-        $("#dj-search-button").click(function(e) {
+        $("#dj-search-form").submit(function(e) {
             if ($("#dj-search-query").val().length < 1)
                 return;
 
@@ -71,13 +71,13 @@
                           });
                           $("#dj-search-results").slideDown("fast");
                       });
-
+            return false;
         });
         $("#dj-search-results").slideUp("fast");
 
-        $("#show-search-button").click(function(e) {
+        $("#show-search-form").submit(function(e) {
             if ($("#show-search-query").val().length < 1)
-                return;
+                return false;
 
             ajaxSearch(SEARCH_SHOW,
                       $("#show-search-query").val(),
@@ -91,7 +91,7 @@
                           });
                           $("#show-search-results").slideDown("fast");
                       });
-
+            return false;
         });
         $("#show-search-results").slideUp("fast");
 
@@ -149,11 +149,11 @@
       {% endfor %}
     </ul>
     <h3>Search programs</h3>
-    <form class="form-search">
+    <form class="form-search" id="show-search-form">
       <input type="text" class="span3 search-query"
              id="show-search-query" placeholder="Search Programs"/>
       <input id="show-search-button"
-             type="button" class="btn btn-primary" value="Search!" />
+             type="submit" class="btn btn-primary" value="Search!" />
     </form>
     <div id="show-search-results" class="well" style="display: none;">
       <h4>Results for &quot;<span id="show-search-querystring"></span>&quot;</h4>

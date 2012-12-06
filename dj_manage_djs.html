@@ -48,7 +48,7 @@
           return false;
         });
 
-        $("#dj-search-button").click(function(e) {
+        $("#dj-search-form").submit(function(e) {
             if ($("#dj-search-query").val().length < 1)
                 return;
 
@@ -64,7 +64,7 @@
                           });
                           $("#dj-search-results").slideDown("fast");
                       });
-
+           return false;
         });
         $("#dj-search-results").slideUp("fast");
 
@@ -158,11 +158,11 @@
       {% for dj in new_djs %}<li><a href="/dj/djs/{{ dj.key.urlsafe }}">{{ dj.fullname }}</a></li>{% endfor %}
     </ul>
     <h3>Search DJs</h3>
-    <form class="form-search">
+    <form id="dj-search-form" class="form-search">
       <input type="text" class="span3 search-query"
              id="dj-search-query" placeholder="Search DJs"/>
       <input id="dj-search-button"
-             type="button" class="btn btn-primary" value="Search!" />
+             type="submit" class="btn btn-primary" value="Search!" />
     </form>
     <div id="dj-search-results" class="well">
       <h4>Results for &quot;<span id="dj-search-querystring"></span>&quot;</h4>

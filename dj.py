@@ -159,18 +159,18 @@ class Login(UserHandler):
     self.user = dj
     program_list = Program.get_by_dj(dj=dj, num=10)
     if not program_list:
-      self.flash = ("You have successfully logged in,"
+      self.session.add_flash("You have successfully logged in,"
                     "but you have no associated programs."
                     "You will not be able to do much until"
                     "you have a program.  If you see this message,"
                     "please email <a href='mailto:cmsmith@bowdoin.edu'>"
-                    "Connor</a> immediately.")
+                    "Connor</a> immediately.", level="success")
       self.redirect('/dj/')
       return
     elif len(program_list) == 1:
       self.program = program_list[0]
-      self.flash = ("Successfully logged in with program %s."%
-                    program_list[0].title)
+      self.session.add_flash("Successfully logged in with program %s."%
+                    program_list[0].title,  level="success")
       self.redirect("/dj/")
       return
     else:
@@ -288,7 +288,7 @@ The WBOR.org Team
 """%reset_url)
     self.session.add_flash(
       "Request successfully sent! Check your mail, and be sure to doublecheck "
-      "the spam folder in case.")
+      "the spam folder in case.",  level="success")
     self.redirect("/")
 
 # Lets the user select which program they've logged in as
@@ -443,14 +443,14 @@ class ChartSong(UserHandler):
           pylast.SCROBBLE_SOURCE_USER, pylast.SCROBBLE_MODE_PLAYED, 60)
         self.session.add_flash(
           "%s has been charted and scrobbled to Last.FM,"
-          " and should show up below."%trackname)
+          " and should show up below."%trackname,  level="success")
       except:
         # just catch all errors with the last.fm; it's not that important that
         # everything get scrobbled exactly; plus this is like the #1 source
         # of errors in charting songs.
         self.session.add_flash(
-          "%s has been charted, but was not scrobbled to Last.FM"%
-          trackname)
+          "%s has been charted, but was <strong>not</strong> scrobbled to Last.FM"%
+          trackname,  level="success")
       self.redirect("/dj/chartsong/")
       return
       # End of song charting.
@@ -460,14 +460,14 @@ class ChartSong(UserHandler):
       station_id = StationID.new(program=self.program_key,
                                  play_date=datetime.datetime.now())
       station_id.put()
-      self.session.add_flash("Station ID recorded.")
+      self.session.add_flash("Station ID recorded.", level="success" )
       self.redirect("/dj/chartsong/")
       return
     elif self.request.get("submit") == "PSA":
       # If the DJ has recorded a PSA play
       psa_desc = self.request.get("psa_desc")
       Psa.new(desc=psa_desc, program=self.program_key).put()
-      self.session.add_flash("PSA recorded.")
+      self.session.add_flash("PSA recorded.",  level="success")
       self.redirect("/dj/chartsong/")
       return
 
@@ -658,10 +658,12 @@ class EditDJ(UserHandler):
 
       dj.put()
 
-      self.session.add_flash(fullname + " has been successfully edited.")
+      self.session.add_flash(fullname + " has been successfully edited.", 
+                             level="success")
     elif self.request.get("submit") == "Delete DJ":
       dj.delete()
-      self.session.add_flash(fullname + " has been successfully deleted.")
+      self.session.add_flash(fullname + " has been successfully deleted.",
+                             level="success")
     self.redirect("/dj/djs/")
 
 
@@ -715,7 +717,7 @@ class ManagePrograms(UserHandler):
 
       self.session.add_flash(
           "The program %s was successfully created!"%
-          program.title)
+          program.title,  level="success")
 
     self.redirect('/dj/programs/')
 
@@ -759,10 +761,10 @@ class EditProgram(UserHandler):
                          self.request.get_all("djkey")]
       program.current = bool(self.request.get("current"))
       program.put()
-      self.session.add_flash(program.title + " successfully edited.")
+      self.session.add_flash(program.title + " successfully edited.",  level="success")
     elif self.request.get("submit") == "Delete Program":
       program.delete()
-      self.session.add_flash(program.title + " successfully deleted.")
+      self.session.add_flash(program.title + " successfully deleted.",  level="success")
     self.redirect("/dj/programs/")
 
 
@@ -811,7 +813,7 @@ class MySelf(UserHandler):
         dj.password = self.request.get("password")
 
     dj.put()
-    self.session.add_flash("You have successfully updated your profile.")
+    self.session.add_flash("You have successfully updated your profile.",  level="success")
     self.redirect("/dj/")
 
 # Lets a DJ edit the description etc. of their show.
@@ -887,7 +889,7 @@ class MyShow(UserHandler):
     program.page_html = self.request.get("page_html")
     program.put()
     self.set_session_program(program)
-    self.session.add_flash("Program successfully changed.")
+    self.session.add_flash("Program successfully changed.",  level="success")
     self.redirect("/dj/myshow")
 
 
@@ -934,7 +936,7 @@ class NewBlogPost(UserHandler):
           template.render(get_path("dj_createpost.html"), template_values))
     else:
       post.put()
-      self.session.add_flash("Post \"%s\" successfully added." % title)
+      self.session.add_flash("Post \"%s\" successfully added." % title,  level="success")
       self.redirect("/")
 
 
@@ -1006,7 +1008,7 @@ class EditBlogPost(UserHandler):
         template.render(get_path("dj_createpost.html"), template_values))
     else:
       post.put()
-      self.session.add_flash("Successfully altered post %s" % post.title)
+      self.session.add_flash("Successfully altered post %s" % post.title,  level="success")
       self.redirect("/")
 
 
@@ -1055,7 +1057,7 @@ class NewEvent(UserHandler):
       return
     event = Event.new(event_date=event_date, title=title, slug=url, text=desc)
     event.put()
-    self.session.add_flash("Event %s successfully created." % title)
+    self.session.add_flash("Event %s successfully created." % title,  level="success")
     self.redirect("/dj/event/")
 
 

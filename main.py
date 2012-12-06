@@ -81,13 +81,13 @@ class DjComplete(BaseHandler):
 class ShowComplete(BaseHandler):
   def get(self):
     q = self.request.get("query")
-    djs = Program.autocomplete(q)
+    progs = Program.autocomplete(q)
     self.response.out.write(json.dumps({
       'query': q,
-      'suggestions': ["%s - %s"%(dj.title, dj.slug) for dj in djs],
-      'data': [{'key': dj.key.urlsafe(),
-                'name': dj.title,
-                'email': dj.slug} for dj in djs],}))
+      'suggestions': ["%s - %s"%(prog.title, prog.slug) for prog in progs],
+      'data': [{'key': prog.key.urlsafe(),
+                'name': prog.title,
+                'slug': prog.slug} for prog in progs],}))
 
 class DjSearch(BaseHandler):
   def get(self):
@@ -391,25 +391,25 @@ class SchedulePage(BaseHandler):
 
 class PlaylistPage(BaseHandler):
   def get(self):
-    shows = Program.get(num=1000) # TODO: NOPE
     slug = self.request.get("show")
     datestring = self.request.get("programdate")
     selected_date = None
+    selected_program = None
 
     if datestring:
       try:
         selected_date = datetime.datetime.strptime(datestring, "%m/%d/%Y")
         selected_date = selected_date + datetime.timedelta(hours=12)
       except:
-        self.session.add_flash("The date provided could not be parsed.")
-        self.redirect("/")
+        self.session.add_flash("The date provided could not be parsed.", level="error")
+        self.redirect("/playlists")
         return
 
     if slug:
       selected_program = Program.get(slug=slug)
       if not selected_program:
-        self.session.add_flash("There is no program for slug %s." % slug)
-        self.redirect("/")
+        self.session.add_flash("There is no program for slug %s." % slug, level="error")
+        self.redirect("/playlists")
         return
       if selected_date:
         plays = Play.get_last(#program=selected_program,
@@ -440,7 +440,8 @@ class PlaylistPage(BaseHandler):
       'playlists_selected': True,
       'session': self.session,
       'plays': plays,
-      'shows': shows,
+      'show': selected_program,
+      'datestring': datestring,
       }
     self.response.out.write(template.render(get_path("playlist.html"),
                                             template_values))
