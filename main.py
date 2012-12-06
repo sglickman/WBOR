@@ -448,7 +448,7 @@ class PlaylistExport(BaseHandler):
   @login_required
   def get(self):
     import csv
-    shows = Program.get(num=1000)
+    shows = [] #Program.get(num=1000)
     slug = self.request.get("show")
     datestring = self.request.get("programdate")
     selected_date = None
