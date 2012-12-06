@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import cache
 import urllib
 import hashlib
 import datetime
