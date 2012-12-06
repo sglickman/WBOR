@@ -374,7 +374,7 @@ class LastCachedModel(CachedModel):
       cached_keys = tuple(cached.results)
 
     if not cached:
-      return []
+      return None if only_one else []
 
     if keys_only:
       if only_one:

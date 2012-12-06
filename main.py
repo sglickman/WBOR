@@ -412,18 +412,17 @@ class PlaylistPage(BaseHandler):
         self.redirect("/playlists")
         return
       if selected_date:
-        plays = Play.get_last(#program=selected_program,
+        plays = Play.get_last(program=selected_program,
                               after=(selected_date -
                                      datetime.timedelta(hours=24)),
                               before=(selected_date +
                                       datetime.timedelta(hours=24)),
           num=60)
       else:
-        lastplay = Play.get_last(program=selected_program, num=1)
+        lastplay = Play.get_last(program=selected_program)
         if lastplay:
-          lastplay = lastplay[0]
           last_date = lastplay.play_date
-          plays = Play.get_last(#program=selected_program,
+          plays = Play.get_last(program=selected_program,
                                 after=(last_date -
                                        datetime.timedelta(days=1)),
                                 num=60)
@@ -478,9 +477,8 @@ class PlaylistExport(BaseHandler):
                                        before=(selected_date +
                                                datetime.timedelta(hours=24)))
       else:
-        lastplay = Play.get_last(program=selected_program, num=1)
+        lastplay = Play.get_last(program=selected_program)
         if lastplay:
-          lastplay = lastplay[0]
           last_date = lastplay.play_date
           plays = models.getPlaysBetween(program=selected_program,
                                          after=(last_date -
