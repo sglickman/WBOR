@@ -192,9 +192,13 @@ class Dj(Searchable, NewCacheable):
           page=False, cursor=None,
           use_datastore=True, one_key=False, **kwargs):
     if keys is not None:
-      return super(Dj, cls).get(keys,
-                                use_datastore=use_datastore,
-                                one_key=one_key)
+      try:
+        return super(Dj, cls).get(keys,
+                                  use_datastore=use_datastore,
+                                  one_key=one_key)
+      except ModelError:
+        return None
+      
 
     return cls._get_helper(page=page, cursor=cursor, **kwargs)
 
@@ -230,7 +234,7 @@ class Dj(Searchable, NewCacheable):
       return
 
     if None in (email, fullname, username, password):
-      raise Exception("Insufficient fields for new Dj")
+      raise ModelError("Insufficient fields for new Dj")
 
     super(Dj, self).__init__(fullname=fullname,
                              email=(fix_bare_email(email) if fix_email

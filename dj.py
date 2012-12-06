@@ -1134,7 +1134,7 @@ class ManagePermissions(UserHandler):
       'permissions': [{
         'key': p.key,
         'title': p.title,
-        'dj_list': [Dj.get(d) for d in p.dj_list],
+        'dj_list': filter(None, [Dj.get(d) for d in p.dj_list]),
         } for p in permissions],
       'session': self.session,
       'flash': self.flashes,
