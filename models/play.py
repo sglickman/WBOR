@@ -43,6 +43,10 @@ def last_week_span(date=None):
   after = date - datetime.timedelta(days=6)
   return before, after
 
+## Exceptions for Programs, Plays, PSAs, StationIDs
+class NoSuchProgramSlug(ModelError):
+  pass
+
 @accepts_raw
 class Program(Searchable, NewCacheable):
   _RAW = RawProgram
@@ -65,11 +69,12 @@ class Program(Searchable, NewCacheable):
 
   @classmethod
   def _autocomplete_queries(cls, prefix):
-    yield (cls._autocomplete_query(cls._RAW.title, prefix), "title")
+    yield (cls._autocomplete_query(cls._RAW.lower_title, prefix), "title")
     yield (cls._autocomplete_query(cls._RAW.slug, prefix), "slug")
 
   def __init__(self, title="", slug="", desc="",
-               dj_list=None, page_html="", current=True):
+               dj_list=None, page_html="", current=True,
+               **kwargs):
     if dj_list is None: dj_list = []
 
     super(Program, self).__init__(title=title,
@@ -77,7 +82,7 @@ class Program(Searchable, NewCacheable):
                                   desc=desc,
                                   dj_list=[as_key(dj) for dj in dj_list if dj],
                                   page_html=page_html,
-                                  current=bool(current))
+                                  current=bool(current), **kwargs)
 
   @classmethod
   def new(cls, title, slug, desc, dj_list, page_html, current=True):
@@ -85,7 +90,7 @@ class Program(Searchable, NewCacheable):
       raise ModelError("Insufficient data to create show")
 
     return cls(title=title, slug=slug, desc=desc, dj_list=dj_list,
-               page_html=page_html, current=True)
+               page_html=page_html, current=current, _new=True)
 
   def put(self):
     return super(Program, self).put()

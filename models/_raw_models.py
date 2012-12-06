@@ -15,6 +15,7 @@ class Permission(ndb.Model):
 
 class Program(ndb.Model):
   title = ndb.StringProperty()
+  lower_title = ndb.ComputedProperty(lambda self: self.title.strip().lower())
   slug = ndb.StringProperty()
   desc = ndb.StringProperty()
   dj_list = ndb.KeyProperty(kind=Dj, repeated=True)

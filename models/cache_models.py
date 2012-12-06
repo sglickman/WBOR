@@ -6,12 +6,26 @@ import logging
 
 # Children have a cache of most-recently added elements.
 # This is like LastCacheable, but does not include any time data
-class NewCacheable(object):
+@accepts_raw
+class NewCacheable(CachedModel):
   NEW = None
 
-  @classmethod
-  def add_to_new_cache(cls, key):
-    cached = QueryCache.fetch(cls.NEW)
+  def __init__(self, _new=False, **kwargs):
+    super(NewCacheable, self).__init__(self, **kwargs)
+    self._new = _new
+
+  def put(self):
+    super(NewCacheable, self).put()
+    self._new = False
+
+  @quantummethod
+  def add_to_new_cache(obj, key=None, new=False):
+    key = obj.key if key is None else key
+    new = obj._new if new is None else new
+    if not new:
+      return
+
+    cached = QueryCache.fetch(obj.NEW)
     cached.prepend(key)
     cached.save()
 
@@ -74,7 +88,11 @@ class NewCacheable(object):
         return cls.get(cached.results[0])
       return (cls.get(cached_keys) + new_objs)[:num]
 
+@accepts_raw
 class Searchable(CachedModel):
+  def __init__(self, **kwargs):
+    super(Searchable, self).__init__(self, **kwargs)
+
   def _search_fields(self):
     raise NotImplementedError()
 
