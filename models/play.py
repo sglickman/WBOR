@@ -61,7 +61,7 @@ class Program(Searchable, NewCacheable):
 
   @property
   def _autocomplete_fields(self):
-    return set(self.title.lower().strip().split() + slug.split("-"))
+    return set(self.title.lower().strip().split() + self.slug.split("-"))
 
   @classmethod
   def _autocomplete_queries(cls, prefix):
