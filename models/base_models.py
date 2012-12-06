@@ -168,7 +168,10 @@ class QueryCache(CacheItem):
 
     if result is None:
       return cls(cachekey)
-    return cls(cachekey, **result)
+    elif not isinstance(result, dict):
+      raise Exception("Result is not dict: %s" % result)
+    else:
+      return cls(cachekey, **result)
 
   def save(self):
     super(QueryCache, self).save({'data': self._data,
