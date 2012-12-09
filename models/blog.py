@@ -6,7 +6,7 @@ from google.appengine.ext import db
 # Local module imports
 from passwd_crypto import hash_password, check_password
 from base_models import (CachedModel, QueryError, ModelError, NoSuchEntry)
-from base_models import quantummethod, as_key
+from base_models import quantummethod, as_key, accepts_raw
 
 from play import LastCachedModel
 
@@ -19,6 +19,7 @@ import random
 import string
 import logging
 
+@accepts_raw
 class BlogPost(LastCachedModel):
   _RAW = RawBlogPost
   _RAWKIND = "BlogPost"
@@ -62,22 +63,15 @@ class BlogPost(LastCachedModel):
     return datetime.datetime.combine(
       self.post_date.date(), datetime.datetime.time())
 
-  def __init__(self, raw=None, raw_key=None,
+  def __init__(self,
                title=None, text=None, post_date=None,
-               slug=None, parent=None, **kwds):
-    if raw is not None:
-      super(BlogPost, self).__init__(raw=raw)
-      return
-    elif raw_key is not None:
-      super(BlogPost, self).__init__(raw_key=raw_key)
-      return
+               slug=None, parent=None, **kwargs):
+    if post_date is None:
+      post_date = datetime.datetime.now()
 
-    else:
-      if post_date is None:
-        post_date = datetime.datetime.now()
-      super(BlogPost, self).__init__(
-        title=title, text=text,
-        post_date=post_date, slug=slug, parent=parent)
+    super(BlogPost, self).__init__(
+      title=title, text=text,
+      post_date=post_date, slug=slug, parent=parent, **kwargs)
 
   @classmethod
   def new(cls, title, text, slug, post_date=None, parent=None, **kwds):
@@ -197,6 +191,7 @@ class BlogPost(LastCachedModel):
     if self.key ==  self._get_slug_cache(self.slug, keys_only=True):
       self.cache_delete(cls.BY_SLUG, slug)
 
+@accepts_raw
 class Event(LastCachedModel):
   _RAW = RawEvent
   _RAWKIND = "Event"
@@ -207,10 +202,12 @@ class Event(LastCachedModel):
 
   BY_SLUG = "@event_slug%s_date%s"
 
+  # Hidden properties, for caching parent classes
   @property
   def _orderby(self):
     return self.event_date
 
+  # Properties to access datastore data
   @property
   def title(self):
     return self.raw.title
@@ -244,22 +241,15 @@ class Event(LastCachedModel):
     return datetime.datetime.combine(
       self.event_date.date(), datetime.datetime.time())
 
-  def __init__(self, raw=None, raw_key=None,
+  def __init__(self, 
                title=None, text=None, event_date=None,
-               slug=None, parent=None, **kwds):
-    if raw is not None:
-      super(Event, self).__init__(raw=raw)
-      return
-    elif raw_key is not None:
-      super(Event, self).__init__(raw_key=raw_key)
-      return
+               slug=None, parent=None, **kwargs):
+    if event_date is None:
+      raise ModelError("It makes no sense to have an event without a date")
 
-    else:
-      if event_date is None:
-        event_date = datetime.datetime.now()
-      super(Event, self).__init__(
-        title=title, desc=text,
-        event_date=event_date, url=slug, parent=parent)
+    super(Event, self).__init__(
+      title=title, desc=text,
+      event_date=event_date, url=slug, parent=parent, **kwargs)
 
   @classmethod
   def new(cls, title, text, slug, event_date=None, parent=None, **kwds):

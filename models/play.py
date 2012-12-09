@@ -320,6 +320,7 @@ class Program(Searchable, NewCacheable):
 # Here's the idea behind last-caching:
 # TODO: write description of last-caching'
 
+@accepts_raw
 class LastCachedModel(CachedModel):
   '''A model for which there is a global cache of "Last instances",
   e.g. a cache of all recently charted songs (see the Play class)'''
@@ -327,6 +328,9 @@ class LastCachedModel(CachedModel):
   LAST = None #Important that children overwrite this to avoid clashes
   LAST_ORDER = 1 #One of 1, -1
   LAST_ORDERBY = None #Get last X based on this ordering
+
+  def __init__(self, **kwargs):
+    super(LastCachedModel, self).__init__(**kwargs)
 
   @classmethod
   def get_last(cls, num=-1, keys_only=False,
@@ -485,7 +489,7 @@ class Play(LastCachedModel):
   def __init__(self, song=None, program=None, artist=None,
                is_new=None, play_date=None,
                parent=None,
-               is_fresh=False, **kwds):
+               is_fresh=False, **kwargs):
     if parent is None:
       parent = program
 
@@ -497,12 +501,12 @@ class Play(LastCachedModel):
                                program=as_key(program),
                                artist=artist,
                                play_date=play_date,
-                               isNew=is_new, **kwds)
+                               isNew=is_new, **kwargs)
 
     self.is_fresh = is_fresh
 
   @classmethod
-  def new(cls, song, program, artist, is_new=False, is_fresh=True, **kwds):
+  def new(cls, song, program, artist, is_new=False, is_fresh=True, **kwargs):
     return cls(song=song, program=program, artist=artist,
                is_new=is_new, is_fresh=is_fresh)
 
@@ -750,7 +754,7 @@ class Psa(LastCachedModel):
 
   def __init__(self,
                program=None, play_date=None,
-               desc=None, parent=None, **kwds):
+               desc=None, parent=None, **kwargs):
     if parent is None:
       parent = program
 
@@ -758,7 +762,7 @@ class Psa(LastCachedModel):
       play_date = datetime.datetime.now()
 
     super(Psa, self).__init__(desc=desc, parent=parent, program=program,
-                              play_date=play_date, **kwds)
+                              play_date=play_date, **kwargs)
 
   @classmethod
   def new(cls, desc, program, play_date=None):
@@ -876,7 +880,7 @@ class StationID(LastCachedModel):
     return self.raw.play_date
 
   def __init__(self, program=None, play_date=None,
-               parent=None, **kwds):
+               parent=None, **kwargs):
     if parent is None:
       parent = program
 
@@ -884,7 +888,7 @@ class StationID(LastCachedModel):
       play_date = datetime.datetime.now()
 
     super(StationID, self).__init__(parent=parent, program=program,
-                                    play_date=play_date, **kwds)
+                                    play_date=play_date, **kwargs)
 
   @classmethod
   def new(cls, program, play_date=None):

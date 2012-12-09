@@ -136,7 +136,7 @@ function nowPlaying() {
             $("#latestplays").html(data.recent_songs_html);
         }
     }, "json");
-    nowPlayingTimer = setTimeout("nowPlaying()", 30000);
+    nowPlayingTimer = setTimeout("nowPlaying()", 60000);
 }
 </script>
     {% block extra_scripts %}{% endblock %}
