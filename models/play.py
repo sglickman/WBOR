@@ -412,7 +412,7 @@ class LastCachedModel(CachedModel):
     if not cachekey: cachekey=cls.LAST
     cached = SortedQueryCache.fetch(cachekey%(before, after))
     logging.info("Cached Lastcache; %s"%cachekey%(before, after))
-    cached.ordered_unique_insert(obj.key, obj._orderby)
+    cached.ordered_unique_insert(obj.key, obj._orderby, f=obj._last_cmp)
     cached.save()
 
   @classmethod

@@ -215,8 +215,8 @@ class Event(LastCachedModel):
   _RAWKIND = "Event"
 
   LAST = "upcoming_events_before%s_after%s"
-  LAST_ORDER = -1
-  LAST_ORDERBY = (-_RAW.event_date,)
+  LAST_ORDER = 1
+  LAST_ORDERBY = (_RAW.event_date,)
 
   BY_SLUG = "@event_slug%s_date%s"
 
@@ -224,6 +224,10 @@ class Event(LastCachedModel):
   @property
   def _orderby(self):
     return self.event_date
+
+  @staticmethod
+  def _last_cmp(new_date, old_date):
+    return new_date <= old_date
 
   # Properties to access datastore data
   @property

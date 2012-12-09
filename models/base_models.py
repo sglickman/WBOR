@@ -274,11 +274,11 @@ class SortedQueryCache(QueryCache):
   def __getitem__(self, key):
     return self._data[key][0]
 
-  def ordered_unique_insert(self, new_key, new_val):
+  def ordered_unique_insert(self, new_key, new_val, f=None):
     """Run through data until we find where to add the new key. Don't
     add the key if no spot is found"""
     for i, (key, val) in enumerate(self._data):
-      if new_val >= val:
+      if (new_val >= val if f is None else f(new_val, val)):
         if key != new_key:
           self._data.insert(i, (new_key, new_val))
         break
