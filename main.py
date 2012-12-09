@@ -48,10 +48,10 @@ class MainPage(BaseHandler):
     end = datetime.date.today() + datetime.timedelta(days=1)
     song_num = 10
     album_num = 10
-    logging.error("Calling get top")
+    logging.debug("Calling get top")
     top_songs, top_albums = Play.get_top(start, end, song_num, album_num)
     posts = BlogPost.get_last(num=3)
-    events = Event.get_last(num=3)
+    events = Event.get_upcoming(num=3)
 
     template_values = {
       'news_selected': True,

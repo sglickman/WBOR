@@ -286,15 +286,15 @@ class Program(Searchable, NewCacheable):
   def update_top_artists(self, artist):
     # a dictionary which looks like (artist_name => playcount)
     playcounts = dict(self.top_artists)
-    logging.error(playcounts)
+    logging.debug(playcounts)
     if artist in playcounts:
       playcounts[artist] = playcounts[artist] + 1
     else:
       playcounts[artist] = self.get_artist_play_count(artist)
 
-    logging.error(playcounts)
+    logging.debug(playcounts)
     playcounts = list(playcounts.iteritems())
-    logging.error(playcounts)
+    logging.debug(playcounts)
     playcounts = sorted(playcounts, key=(lambda x: x[1]), reverse=True)
     playcounts = playcounts[:10]
     self.raw.top_artists = [str(p[0]) for p in playcounts]
@@ -352,6 +352,8 @@ class LastCachedModel(CachedModel):
       after = last_week_span(before)[1]
 
     cached = SortedQueryCache.fetch(cachekey % (before, after))
+
+    logging.debug((before, after))
 
     last = []
     cached_keys = []
@@ -688,7 +690,7 @@ class Play(LastCachedModel):
           else:
             album_counts[album_key] = 1
 
-    logging.error(song_counts)
+    logging.debug(song_counts)
 
     if not keys_only:
       if song_counts:

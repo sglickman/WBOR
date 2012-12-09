@@ -235,6 +235,10 @@ class Event(LastCachedModel):
   @property
   def event_date(self):
     return self.raw.event_date
+  @event_date.setter
+  def event_date(self, date):
+    self.raw.event_date = date
+
   @property
   def event_date_as_date(self):
     return datetime.datetime.combine(
@@ -307,8 +311,13 @@ class Event(LastCachedModel):
       return query.fetch_page(num, keys_only=True, start_cursor=cursor)
 
   @classmethod
-  def get_last(cls, num=3, keys_only=False):
-    return super(Event, cls).get_last(num=num, keys_only=keys_only)
+  def get_last(cls, num=3, keys_only=False, **kwargs):
+    return super(Event, cls).get_last(num=num, keys_only=keys_only, **kwargs)
+
+  @classmethod
+  def get_upcoming(cls, num=3, keys_only=False):
+    return cls.get_last(num=num, keys_only=keys_only, 
+                        after=datetime.datetime.now(), before=datetime.datetime.max)
 
   @classmethod
   def get_by_slug(cls, slug, event_date=None):

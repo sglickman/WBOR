@@ -96,7 +96,7 @@ class MainPage(UserHandler):
   def get(self):
     djkey = self.dj_key
 
-    logging.error(self.session)
+    logging.debug(self.session)
     template_values = {
       'session': self.session,
       'flashes': self.session.get_flashes(),
@@ -1103,7 +1103,7 @@ class EditEvent(UserHandler):
       self.redirect("/dj/")
       return
     event.title = self.request.get("title")
-    event.desc = self.request.get("desc")
+    event.text = self.request.get("desc")
     event.url = self.request.get("url")
     event_date = self.request.get("date")
     hours = self.request.get("hour")
