@@ -239,7 +239,7 @@ class Dj(Searchable, NewCacheable):
   @classmethod
   def new(cls, email, fullname, username, password, fix_email=True):
     return cls(email=email, fullname=fullname, username=username,
-               password=password, fix_email=fix_email)
+               password=password, fix_email=fix_email, _new=True)
 
   def put(self):
     # TODO: inject dj into autocompletion

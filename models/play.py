@@ -121,7 +121,7 @@ class Program(Searchable, NewCacheable):
     super(Program, self).add_to_cache()
     self.add_slug_cache()
     self.add_dj_cache()
-    self.add_to_new_cache(self.key)
+    self.add_to_new_cache()
     return self
 
   def purge_from_cache(self):

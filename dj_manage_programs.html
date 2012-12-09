@@ -10,23 +10,6 @@
         return text;
     }
 
-    var djbutton = $("<tr></tr>");
-    djbutton.append($("<td><a>&times;</a></td>"))
-    djbutton.append($("<td id=\"djname\"></td>"));
-    djbutton.append($("<td id=\"djemail\">Email</td>"));
-    djbutton.append($("<input type=\"hidden\" id=\"djkey\""+
-                      " name=\"djkey\" value=\"\"/>"));
-
-    function addDjToProgram(key, name, email) {
-        var newbutton = djbutton.clone();
-        newbutton.find("#djname").text(name);
-        newbutton.find("#djemail").text(email);
-        newbutton.find("#djkey").val(key);
-        $("#show-dj-list").find("tbody").append(newbutton);
-        $("#dj-table").removeClass("hidden-djs");
-        $("#no-dj-alert").addClass("hidden-djs");
-    }
-
     $(function() {
         $("a.delete").click(function(e) {
           var dj_key = $(this).parent().attr("id");
@@ -48,6 +31,11 @@
           return false;
         });
 
+    $("a#remove-dj").click(function(e){
+      $(this).parentsUntil(":not(td,tr)", "tr").remove();
+      return false;
+    });
+
         $("#dj-search-form").submit(function(e) {
             if ($("#dj-search-query").val().length < 1)
                 return false;
@@ -65,6 +53,7 @@
                                               dj["key"],
                                               dj["name"],
                                               dj["email"]);
+                                          return false;
                                       })
                               ).appendTo(
                                    $("#dj-search-results-list"));

@@ -16,17 +16,22 @@ class NewCacheable(CachedModel):
     self._new = _new
 
   def put(self):
+    logging.error(self._new)
     super(NewCacheable, self).put()
     self._new = False
+    logging.error(self._new)
 
   @quantummethod
-  def add_to_new_cache(obj, key=None, new=False):
+  def add_to_new_cache(obj, key=None, new=None):
+    logging.info("Maybe Newcache %s %s %s"%(key, new, obj))
     key = obj.key if key is None else key
     new = obj._new if new is None else new
+    logging.info("Maybe Newcache %s %s %s"%(key, new, obj))
     if not new:
       return
 
     cached = QueryCache.fetch(obj.NEW)
+    logging.info("Newcached %s"%obj)
     cached.prepend(key)
     cached.save()
 

@@ -44,8 +44,8 @@
       <tbody>{% for dj in program_djs %}
         <tr><td>{% ifequal action "myshow" %}
             {% ifequal dj.key.urlsafe session.dj.key %}{% else %}
-            <a>×</a>{% endifequal%}
-            {% else %}<a>×</a>
+            <a id="remove-dj">×</a>{% endifequal%}
+            {% else %}<a id="remove-dj">×</a>
             {% endifequal %}</td>
           <td id="djname">{{ dj.fullname }}</td>
           <td id="djemail">{{ dj.email }}</td>
