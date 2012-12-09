@@ -356,6 +356,7 @@ class LastCachedModel(CachedModel):
       after = last_week_span(before)[1]
 
     cached = SortedQueryCache.fetch(cachekey % (before, after))
+    logging.info("Grabbed Lastcache %s"%cachekey % (before, after))
 
     logging.debug((before, after))
 
@@ -410,6 +411,7 @@ class LastCachedModel(CachedModel):
                         before=None, after=None):
     if not cachekey: cachekey=cls.LAST
     cached = SortedQueryCache.fetch(cachekey%(before, after))
+    logging.info("Cached Lastcache; %s"%cachekey%(before, after))
     cached.ordered_unique_insert(obj.key, obj._orderby)
     cached.save()
 

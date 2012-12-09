@@ -63,7 +63,7 @@ class BlogPost(LastCachedModel):
     return datetime.datetime.combine(
       self.post_date.date(), datetime.datetime.time())
 
-  def __init__(self,
+  def __init__(self, is_fresh=False,
                title=None, text=None, post_date=None,
                slug=None, parent=None, **kwargs):
     if post_date is None:
@@ -72,11 +72,12 @@ class BlogPost(LastCachedModel):
     super(BlogPost, self).__init__(
       title=title, text=text,
       post_date=post_date, slug=slug, parent=parent, **kwargs)
+    self.is_fresh = is_fresh
 
   @classmethod
   def new(cls, title, text, slug, post_date=None, parent=None, **kwds):
     return cls(title=title, text=text, slug=slug, post_date=post_date,
-               parent=parent, **kwds)
+               parent=parent, is_fresh=True, **kwds)
 
   @classmethod
   def get(cls, keys=None, slug=None, before=None,
@@ -164,6 +165,11 @@ class BlogPost(LastCachedModel):
       return post
     return None
 
+
+  def put(self):
+    super(BlogPost, self).put()
+    self.is_fresh = False
+
   @classmethod
   def _get_slug_cache(cls, slug, date=None, keys_only=False):
     return cls.get_by_index(cls.BY_SLUG, slug, date, keys_only=keys_only)
@@ -180,6 +186,17 @@ class BlogPost(LastCachedModel):
                          datetime.datetime.combine(
                            self.post_date.date(), datetime.time()))
 
+    try:
+      if self.is_fresh:
+        self.add_own_last_cache()
+    except AttributeError:
+      pass
+
+  # Utility method so that a last-cacheable entry knows how to
+  # lastcache itself.
+  def add_own_last_cache(self):
+    self.add_to_last_cache(self) # We don't do anything special for BlogPosts
+
   def purge_from_cache(self):
     super(BlogPost, self).purge_from_cache()
 
@@ -190,6 +207,7 @@ class BlogPost(LastCachedModel):
       self.cache_delete(cls.BY_SLUG, slug, self.post_date_as_date)
     if self.key ==  self._get_slug_cache(self.slug, keys_only=True):
       self.cache_delete(cls.BY_SLUG, slug)
+    self.purge_from_last_cache(self.key)
 
 @accepts_raw
 class Event(LastCachedModel):
@@ -243,20 +261,19 @@ class Event(LastCachedModel):
 
   def __init__(self, 
                title=None, text=None, event_date=None,
-               slug=None, parent=None, **kwargs):
+               slug=None, parent=None, is_fresh=False, **kwargs):
     if event_date is None:
       raise ModelError("It makes no sense to have an event without a date")
 
     super(Event, self).__init__(
       title=title, desc=text,
       event_date=event_date, url=slug, parent=parent, **kwargs)
-
-    self.is_fresh = True
+    self.is_fresh = is_fresh
 
   @classmethod
   def new(cls, title, text, slug, event_date=None, parent=None, **kwds):
     return cls(title=title, text=text, slug=slug, event_date=event_date,
-               parent=parent, **kwds)
+               parent=parent, is_fresh=True, **kwds)
 
   @classmethod
   def get(cls, keys=None, slug=None, before=None,
@@ -309,7 +326,7 @@ class Event(LastCachedModel):
   @classmethod
   def get_upcoming(cls, num=3, keys_only=False):
     return cls.get_last(num=num, keys_only=keys_only, 
-                        after=datetime.datetime.now(), before=datetime.datetime.max)
+                        after=datetime.date.today(), before=datetime.date.max)
 
   @classmethod
   def get_by_slug(cls, slug, event_date=None):
@@ -367,7 +384,6 @@ class Event(LastCachedModel):
     try:
       if self.is_fresh:
         self.add_own_last_cache()
-        self.add_own_top_cache()
     except AttributeError:
       pass
 
@@ -381,6 +397,7 @@ class Event(LastCachedModel):
       self.cache_delete(cls.BY_SLUG, slug, self.event_date_as_date)
     if self.key ==  self._get_slug_cache(self.slug, keys_only=True):
       self.cache_delete(cls.BY_SLUG, slug)
+    self.purge_from_last_cache(self.key)
 
   # Utility method so that a last-cacheable entry knows how to
   # lastcache itself.
@@ -389,8 +406,3 @@ class Event(LastCachedModel):
     self.add_to_last_cache(self, 
                            after=datetime.date.today(), 
                            before=datetime.date.max)
-
-  def purge_from_cache(self):
-    super(Play, self).purge_from_cache()
-    self.purge_from_last_cache(self.key)
-    return self
