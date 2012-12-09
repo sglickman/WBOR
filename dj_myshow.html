@@ -63,19 +63,34 @@
                 $("#slugified-slug").text(slugify($(this).val()));
             });
         });
-        if ($(".dj-autocomplete-program").length > 0) {
-        $(".dj-autocomplete-program").each(function(index) {
-            $(this).autocomplete({
-                serviceUrl: '/ajax/djcomplete',
-                minChars: 1,
-                width: $(".dj-autocomplete-program").width(),
-                maxHeight: 400,
-                onSelect: function(value, data) {
-                    addDjToProgram(data["key"], data["name"], data["email"]);
-                },
-            });
+
+        $("#dj-search-form").submit(function(e) {
+            if ($("#dj-search-query").val().length < 1)
+                return false;
+
+            $.getJSON('/ajax/djcomplete',
+                      {'query': $("#dj-search-query").val()},
+                      function(data) {
+                          $("#dj-search-querystring").text(data["query"]);
+                          $("#dj-search-results-list").empty();
+                          $.each(data["data"], function(i, dj) {
+                              $("<li></li>").append(
+                                  $("<a href='#'>"+dj["name"]+"</a>").click(
+                                      function(e) {
+                                          addDjToProgram(
+                                              dj["key"],
+                                              dj["name"],
+                                              dj["email"]);
+                                      })
+                              ).appendTo(
+                                  $("#dj-search-results-list"));
+                          });
+                          $("#dj-search-results").slideDown("fast");
+                      });
+            return false;
         });
-    }
+        $("#dj-search-results").slideUp("fast");
+
     });
 
 </script>

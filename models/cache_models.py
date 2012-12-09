@@ -11,7 +11,8 @@ class NewCacheable(CachedModel):
   NEW = None
 
   def __init__(self, _new=False, **kwargs):
-    super(NewCacheable, self).__init__(self, **kwargs)
+    logging.error(kwargs)
+    super(NewCacheable, self).__init__(**kwargs)
     self._new = _new
 
   def put(self):
@@ -91,7 +92,8 @@ class NewCacheable(CachedModel):
 @accepts_raw
 class Searchable(CachedModel):
   def __init__(self, **kwargs):
-    super(Searchable, self).__init__(self, **kwargs)
+    logging.error(kwargs)
+    super(Searchable, self).__init__(**kwargs)
 
   def _search_fields(self):
     raise NotImplementedError()

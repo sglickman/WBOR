@@ -13,7 +13,7 @@ from google.appengine.ext import db, ndb
 from passwd_crypto import hash_password, check_password
 from base_models import (CachedModel, QueryError, ModelError, NoSuchEntry)
 from base_models import quantummethod, as_key, as_keys, is_key
-from base_models import SetQueryCache
+from base_models import SetQueryCache, accepts_raw
 
 from _raw_models import Dj as RawDj
 from _raw_models import Permission as RawPermission
@@ -47,6 +47,7 @@ class NoSuchTitle(NoSuchEntry):
 class InvalidLogin(ModelError):
   pass
 
+@accepts_raw
 class Dj(Searchable, NewCacheable):
   _RAW = RawDj
   _RAWKIND = "Dj"
@@ -223,16 +224,9 @@ class Dj(Searchable, NewCacheable):
     else:
       return query.fetch_page(num, keys_only=True, start_cursor=cursor)
 
-  def __init__(self, raw=None, raw_key=None,
+  def __init__(self,
                email=None, fullname=None, username=None,
-               password=None, fix_email=True):
-    if raw is not None:
-      super(Dj, self).__init__(raw=raw)
-      return
-    elif raw_key is not None:
-      super(Dj, self).__init__(raw_key=raw_key)
-      return
-
+               password=None, fix_email=True, **kwargs):
     if None in (email, fullname, username, password):
       raise ModelError("Insufficient fields for new Dj")
 
@@ -240,7 +234,7 @@ class Dj(Searchable, NewCacheable):
                              email=(fix_bare_email(email) if fix_email
                                     else email),
                              username=username,
-                             password_hash=hash_password(password))
+                             password_hash=hash_password(password), **kwargs)
 
   @classmethod
   def new(cls, email, fullname, username, password, fix_email=True):

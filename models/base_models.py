@@ -304,6 +304,7 @@ def accepts_raw(cls):
       #if raw_cb: raw_cb()
       return
     else:
+      logging.error(kwargs)
       old_init(self, **kwargs)
   cls.__init__ = __init__
   return cls
