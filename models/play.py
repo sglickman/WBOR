@@ -406,16 +406,18 @@ class LastCachedModel(CachedModel):
 
   # Method to add a new element to the lastcache for this class
   @classmethod
-  def add_to_last_cache(cls, obj, cachekey=None):
+  def add_to_last_cache(cls, obj, cachekey=None, 
+                        before=None, after=None):
     if not cachekey: cachekey=cls.LAST
-    cached = SortedQueryCache.fetch(cachekey%(None, None))
+    cached = SortedQueryCache.fetch(cachekey%(before, after))
     cached.ordered_unique_insert(obj.key, obj._orderby)
     cached.save()
 
   @classmethod
-  def purge_from_last_cache(cls, key, cachekey=None):
+  def purge_from_last_cache(cls, key, cachekey=None,
+                            before=None, after=None):
     if not cachekey: cachekey=cls.LAST
-    cached = SortedQueryCache.fetch(cachekey%(None, None))
+    cached = SortedQueryCache.fetch(cachekey%(before, after))
     try:
       cached.remove(key)
       cached.save()

@@ -251,6 +251,8 @@ class Event(LastCachedModel):
       title=title, desc=text,
       event_date=event_date, url=slug, parent=parent, **kwargs)
 
+    self.is_fresh = True
+
   @classmethod
   def new(cls, title, text, slug, event_date=None, parent=None, **kwds):
     return cls(title=title, text=text, slug=slug, event_date=event_date,
@@ -342,6 +344,10 @@ class Event(LastCachedModel):
       return event
     return None
 
+  def put(self):
+    super(Event, self).put()
+    self.is_fresh = False
+
   @classmethod
   def _get_slug_cache(cls, slug, date=None, keys_only=False):
     return cls.get_by_index(cls.BY_SLUG, slug, date, keys_only=keys_only)
@@ -358,6 +364,13 @@ class Event(LastCachedModel):
                          datetime.datetime.combine(
                            self.event_date.date(), datetime.time()))
 
+    try:
+      if self.is_fresh:
+        self.add_own_last_cache()
+        self.add_own_top_cache()
+    except AttributeError:
+      pass
+
   def purge_from_cache(self):
     super(Event, self).purge_from_cache()
 
@@ -368,3 +381,16 @@ class Event(LastCachedModel):
       self.cache_delete(cls.BY_SLUG, slug, self.event_date_as_date)
     if self.key ==  self._get_slug_cache(self.slug, keys_only=True):
       self.cache_delete(cls.BY_SLUG, slug)
+
+  # Utility method so that a last-cacheable entry knows how to
+  # lastcache itself.
+  def add_own_last_cache(self):
+    self.add_to_last_cache(self)
+    self.add_to_last_cache(self, 
+                           after=datetime.date.today(), 
+                           before=datetime.date.max)
+
+  def purge_from_cache(self):
+    super(Play, self).purge_from_cache()
+    self.purge_from_last_cache(self.key)
+    return self
