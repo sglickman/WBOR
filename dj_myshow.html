@@ -47,6 +47,11 @@
             });
         });
 
+        $("a#remove-dj").click(function(e){
+            $(this).parentsUntil(":not(td,tr)", "tr").remove();
+            return false;
+        });
+
         $("#dj-search-form").submit(function(e) {
             if ($("#dj-search-query").val().length < 1)
                 return false;
