@@ -604,6 +604,60 @@ class ContactPage(BaseHandler):
     self.response.out.write(
       template.render(get_path("contact.html"), template_values))
 
+# Allows DJ auto-signup
+# get(): Display DJ signup form
+# post(): Register DJ (if valid signup token)
+class SignUp(BaseHandler):
+  def get(self):
+    template_values = {
+      'token': self.request.get("token"),
+      'session': self.session,
+      'flash': self.flashes,
+      'posts': BlogPost.get_last(num=3),
+    }
+    self.response.out.write(
+      template.render(get_path("signup.html"), template_values))
+
+  def post(self):
+    if self.request.get("submit") != "Register":
+      self.session.add_flash(
+        "There was an error processing your request.  Please try again.",
+        level="error")
+      self.redirect(")/signup?token=%s"%token)
+      return
+
+    elif self.request.get("submit") == "Register":
+      token = self.request.get("token")
+      fullname = self.request.get("fullname")
+      email = self.request.get("email")
+      username = self.request.get("username")
+      password = self.request.get("password")
+
+      required_fields = [fullname, email, username, password]
+      if "" in [field.strip() for field in required_fields]:
+        self.session.add_flash("None of the fields may be empty")
+        self.redirect("/signup?token=%s"%token)
+        return
+
+      if password is not None and password != self.request.get("confirm"):
+        self.session.add_flash("Passwords do not match.")
+        self.redirect("/signup?token=%s"%token)
+        return
+
+      dj = Dj(fullname=fullname, 
+              email=email,
+              username=username,
+              password=password)
+
+      dj.put()
+
+      self.session.add_flash("%s, you have successfully registered as a DJ."
+                             "You may now log in" % dj.fullname, 
+                             level="success")
+
+    self.redirect("/")
+
+
 class ProgramPage(BaseHandler):
   def get(self, slug):
     program = Program.get_by_slug(slug)
@@ -648,26 +702,27 @@ def profile_main():
 
 
 app = webapp2.WSGIApplication([
-    ('/', MainPage),
-    ('/updateinfo/?', UpdateInfo),
-    ('/ajax/albumtable/?', AlbumTable),
-    ('/ajax/albuminfo/?', AlbumInfo),
-    ('/ajax/artistcomplete/?', ArtistComplete),
-    ('/ajax/getSongList/?', SongList),
-    ('/ajax/djcomplete/?', DjComplete),
-    ('/ajax/showcomplete/?', ShowComplete),
-    ('/setup/?', Setup),
-    ('/blog/([^/]*)/([^/]*)/?', BlogDisplay),
-    ('/programs?/([^/]*)/?', ProgramPage),
-    ('/schedule/?', SchedulePage),
-    ('/playlists/?', PlaylistPage),
-    ('/playexport/?', PlaylistExport),
-    ('/fun/?', FunPage),
-    ('/charts/?', ChartsPage),
-    ('/history/?', HistoryPage),
-    ('/contact/?', ContactPage),
-    ('/events/?', EventPage),
-    ('/albums/([^/]*)/?', ViewCoverHandler),
-    ('/callvoice/?', CallVoice),
-    ('/testmodels/?', TestModels),
-    ], debug=True, config=webapp2conf)
+  ('/', MainPage),
+  ('/updateinfo/?', UpdateInfo),
+  ('/ajax/albumtable/?', AlbumTable),
+  ('/ajax/albuminfo/?', AlbumInfo),
+  ('/ajax/artistcomplete/?', ArtistComplete),
+  ('/ajax/getSongList/?', SongList),
+  ('/ajax/djcomplete/?', DjComplete),
+  ('/ajax/showcomplete/?', ShowComplete),
+  ('/setup/?', Setup),
+  ('/blog/([^/]*)/([^/]*)/?', BlogDisplay),
+  ('/programs?/([^/]*)/?', ProgramPage),
+  ('/schedule/?', SchedulePage),
+  ('/playlists/?', PlaylistPage),
+  ('/playexport/?', PlaylistExport),
+  ('/fun/?', FunPage),
+  ('/charts/?', ChartsPage),
+  ('/history/?', HistoryPage),
+  ('/contact/?', ContactPage),
+  ('/events/?', EventPage),
+  ('/albums/([^/]*)/?', ViewCoverHandler),
+  ('/callvoice/?', CallVoice),
+  ('/testmodels/?', TestModels),
+  ('/signup/?', SignUp),
+], debug=True, config=webapp2conf)

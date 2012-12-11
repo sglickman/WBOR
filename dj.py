@@ -164,7 +164,7 @@ class Login(UserHandler):
                     "You will not be able to do much until"
                     "you have a program.  If you see this message,"
                     "please email <a href='mailto:cmsmith@bowdoin.edu'>"
-                    "Connor</a> immediately.", level="success")
+                    "Ruben</a> immediately.", level="success")
       self.redirect('/dj/')
       return
     elif len(program_list) == 1:
@@ -210,7 +210,7 @@ class RequestPassword(UserHandler):
         self.session.add_flash(
           "You will not be able to do much until you have a"
           "program.  If you see this message, please email"
-          "<a href='mailto:cmsmith@bowdoin.edu'>Connor</a>"
+          "<a href='mailto:cmsmith@bowdoin.edu'>Ruben</a>"
           "immediately.")
         self.redirect('/dj/myself')
         return
