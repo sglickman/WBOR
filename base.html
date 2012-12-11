@@ -307,7 +307,9 @@ function nowPlaying() {
                       <li><a href='/dj/chartsong'>Chart Song</a></li>
                       <li><a href='/dj/charts'>View Charts</a></li>
                       <li><a href='/dj/logs'>View Logs</a></li>
-                      <li><a href='/dj/myshow'>Edit Show Information</a></li>
+                      <li><a href='/dj/myshow'>
+                          {% if session.program %}Edit Show
+                          Information{% else %}Create New Show{% endif %}</a></li>
                       <li><a href='/dj/myself'>Edit DJ Information</a></li>
                     </ul>
                   </li>

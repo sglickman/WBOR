@@ -24,7 +24,8 @@ You can <a href='/dj/selectprogram/'>change programs here</a>.
             <li><a href="/dj/selectprogram/">Change Program</a></li>
             <li><a href="/dj/logout">Log Out</a></li>
             <li class="nav-header">Edit</li>
-            <li><a href='/dj/myshow'>Edit Show Information</a></li>
+            <li><a href='/dj/myshow'>{% if session.program %}Edit Show
+            Information{% else %}Create New Show{% endif %}</a></li>
             <li><a href='/dj/myself'>Edit DJ Information</a></li>
 
             <li class="nav-header">Administration</li>
