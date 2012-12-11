@@ -367,7 +367,8 @@ function nowPlaying() {
           <div class='span12' id='msgbox'>
             {% for msg in flash %}
             <div class='alert fade in 
-                 {% ifequal msg.1 "success" %}alert-success{% endifequal %}'>
+                 {% ifequal msg.1 "success" %}alert-success{% endifequal %}
+                 {% ifequal msg.1 "error" %}alert-error{% endifequal %}'>
               <a class="close" data-dismiss="alert" href="#">&times;</a>
               {{ msg.0|safe }}
             </div>
