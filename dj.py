@@ -40,7 +40,8 @@ from slughifi import slughifi
 
 from models.base_models import (NoSuchEntry, ModelError)
 from models.dj import (Dj, Permission, InvalidLogin,
-                       NoSuchUsername, NoSuchEmail)
+                       NoSuchUsername, NoSuchEmail,
+                       DjRegistrationToken)
 from models.tracks import Album, Song, ArtistName
 from models.play import Play, Psa, StationID, Program
 from models.blog import BlogPost, Event
@@ -666,6 +667,25 @@ class EditDJ(UserHandler):
                              level="success")
     self.redirect("/dj/djs/")
 
+class OpenRegistration(UserHandler):
+  def get(self):
+    self.redirect("/dj/djs/")
+
+  @authorization_required("Manage DJs")
+  def post(self):
+    uses = int(self.request.get("numdjs"))
+    token = DjRegistrationToken.new(uses=uses)
+    token.put()
+
+    template_values = {
+      'session': self.session,
+      'flash': self.flashes,
+      'posts': BlogPost.get_last(num=3),
+      'token': token.id,
+      'uses': uses,
+    }
+    self.response.out.write(
+      template.render(get_path("dj_open_registration.html"), template_values))
 
 # Displays current programs and adds new programs
 # get(): display current programs
@@ -1399,30 +1419,31 @@ class ManageAlbums(UserHandler):
     if self.request.get("ajax"):
       self.response.out.write(
         json.dumps({
-            'msg': ("The album \"%s\" by %s was successfully added."%
-                    (title, artist)),
-            'result': 0,}))
+          'msg': ("The album \"%s\" by %s was successfully added."%
+                  (title, artist)),
+          'result': 0,}))
 
 
 app = webapp2.WSGIApplication([
-    ('/dj/?', MainPage),
-    ('/dj/login/?', Login),
-    ('/dj/logout/?', Logout),
-    ('/dj/djs/?', ManageDJs),
-    ('/dj/djs/([^/]*)/?', EditDJ),
-    ('/dj/programs/?', ManagePrograms),
-    ('/dj/programs/([^/]*)/?', EditProgram),
-    ('/dj/chartsong/?', ChartSong),
-    ('/dj/albums/?', ManageAlbums),
-    ('/dj/selectprogram/?', SelectProgram),
-    ('/dj/logs/?', ViewLogs),
-    ('/dj/permissions/?', ManagePermissions),
-    ('/dj/myshow(?:/([^/]*))?/?', MyShow),
-    ('/blog/([^/]*)/([^/]*)/edit/?', EditBlogPost),
-    ('/dj/newpost/?', NewBlogPost),
-    ('/dj/event/?', NewEvent),
-    ('/dj/myself/?', MySelf),
-    ('/dj/removeplay/?', RemovePlay),
-    ('/dj/event/([^/]*)/?', EditEvent),
-    ('/dj/reset/?.*', RequestPassword),
-    ], debug=True, config=webapp2conf)
+  ('/dj/?', MainPage),
+  ('/dj/login/?', Login),
+  ('/dj/logout/?', Logout),
+  ('/dj/djs/?', ManageDJs),
+  ('/dj/djs/([^/]*)/?', EditDJ),
+  ('/dj/openregistration/?', OpenRegistration),
+  ('/dj/programs/?', ManagePrograms),
+  ('/dj/programs/([^/]*)/?', EditProgram),
+  ('/dj/chartsong/?', ChartSong),
+  ('/dj/albums/?', ManageAlbums),
+  ('/dj/selectprogram/?', SelectProgram),
+  ('/dj/logs/?', ViewLogs),
+  ('/dj/permissions/?', ManagePermissions),
+  ('/dj/myshow(?:/([^/]*))?/?', MyShow),
+  ('/blog/([^/]*)/([^/]*)/edit/?', EditBlogPost),
+  ('/dj/newpost/?', NewBlogPost),
+  ('/dj/event/?', NewEvent),
+  ('/dj/myself/?', MySelf),
+  ('/dj/removeplay/?', RemovePlay),
+  ('/dj/event/([^/]*)/?', EditEvent),
+  ('/dj/reset/?.*', RequestPassword),
+], debug=True, config=webapp2conf)

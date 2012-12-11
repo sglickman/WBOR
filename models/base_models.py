@@ -330,6 +330,10 @@ class CachedModel(object):
       return self._dbkey
     else:
       return None
+      
+  @property
+  def id(self):
+    return self.key.id()
 
   @property
   def raw(self):

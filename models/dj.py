@@ -16,6 +16,7 @@ from base_models import quantummethod, as_key, as_keys, is_key
 from base_models import SetQueryCache, accepts_raw
 
 from _raw_models import Dj as RawDj
+from _raw_models import DjRegistrationToken as RawToken
 from _raw_models import Permission as RawPermission
 
 from autocomplete import *
@@ -241,11 +242,19 @@ class Dj(Searchable, NewCacheable):
     return cls(email=email, fullname=fullname, username=username,
                password=password, fix_email=fix_email, _new=True)
 
-  def put(self):
+  @ndb.transactional(xg=True)
+  def put(self, token=None):
     # TODO: inject dj into autocompletion
     self.update_autocomplete_cache()
 
-    return super(Dj, self).put()
+    key = super(Dj, self).put()
+    if token:
+      token.use_token()
+      token.put()
+    elif token is not None and not token:
+      raise ModelError("Trying to put new DJ with invalid registration token")
+
+    return key
 
   def reset_password(self, put=True):
     reset_key = ''.join(random.choice(string.ascii_letters +
@@ -606,3 +615,45 @@ class Permission(CachedModel):
   @classmethod
   def get_key_by_title(cls, title):
     return cls.get_by_title(title=title, keys_only=True)
+
+@accepts_raw
+class DjRegistrationToken(CachedModel):
+  _RAW = RawToken
+  _RAWKIND = "DjRegistrationToken"
+
+  @property
+  def token(self):
+    return self.id
+  @property
+  def uses(self):
+    return self.raw.uses
+
+  def use_token(self):
+    if self.raw.uses > 0:
+      self.raw.uses -= 1
+    else:
+      self.raw.uses = 0
+
+  def __init__(self, token=None, uses=1, **kwargs):
+    if not token:
+      raise ModelError("Token must exist and be nontrivial")
+
+    super(DjRegistrationToken, self).__init__(
+      id=token, uses=uses, **kwargs)
+
+  @classmethod
+  def new(cls, token=None, uses=1):
+    if not token:
+      token = '%030x' % random.randrange(256**15)
+    return DjRegistrationToken(token=token, uses=uses)
+
+  @classmethod
+  def get(cls, token_str):
+    return DjRegistrationToken(raw_key=ndb.Key(cls._RAWKIND, token_str))
+
+  def is_valid(self):
+    return (self.raw is not None and
+            self.uses > 0)
+
+  def __nonzero__(self):
+    return self.is_valid()
