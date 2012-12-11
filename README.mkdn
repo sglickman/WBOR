@@ -9,3 +9,11 @@ require a whole bunch more formatting work so... for now, spaces.
 
 I think the preferred string formatting method is 
 "My string has %s"%string_quality rather than string arithmetic.
+
+
+
+Searching via the GAE Search API
+=====================================
+Included is a basic start to implementing searching via the Search API.
+Right now, it isn't possible to search by partial query... which possibly
+makes this unneccessary for the simple cases we use 'search' right now.

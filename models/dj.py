@@ -8,6 +8,7 @@ from __future__ import with_statement
 
 # GAE Imports
 from google.appengine.ext import db, ndb
+from google.appengine.api import search
 
 # Local module imports
 from passwd_crypto import hash_password, check_password
@@ -65,6 +66,20 @@ class Dj(Searchable, NewCacheable):
 
   USERNAME = "dj_username%s"
   EMAIL = "dj_email%s"
+
+  _INDEX_NAME = "dj"
+
+  @property
+  def _doc_id(self):
+    return self.key.urlsafe()
+
+  def _get_document(self):
+    return search.Document(
+      doc_id=self._doc_id,
+      fields=[search.TextField(name='username', value=self.username),
+              search.TextField(name='email', value=self.email),
+              search.TextField(name='lowername', value=self.lowername)],
+      language='en')
 
   @property
   def _autocomplete_fields(self):

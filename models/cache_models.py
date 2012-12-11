@@ -1,6 +1,7 @@
 from base_models import *
 
 from google.appengine.ext import db, ndb
+from google.appengine.api import search
 
 import logging
 
@@ -97,9 +98,44 @@ class NewCacheable(CachedModel):
 
 @accepts_raw
 class Searchable(CachedModel):
+  @property
+  @classmethod
+  def _INDEX_NAME(self):
+    raise ModelError("%s has not declared its index."%self.__class__.__name__)
+  
+  @property
+  def _doc_id(self):
+    raise ModelError("%s has not declared its search Document ID."%
+                     self.__class__.__name__)
+
+  def _get_document(self):
+    raise ModelError("%s must describe its Document."%self.__class__.__name__)
+
+  def __init__(self, **kwargs):
+    super(Searchable, self).__init__(**kwargs)
+
+  def add_to_cache(self):
+    super(Searchable, self).add_to_cache()
+    
+    try:
+      search.Index(name=self._INDEX_NAME).put(self._get_document())
+    except search.Error:
+      logging.exception("Failed to add Searchable to search Index")
+
+  def purge_from_cache(self):
+    search.Index(name=self._INDEX_NAME).remove(self.key)
+
+  @classmethod
+  def search(cls, query_string):
+    query = search.Query(query_string)
+    results = search.Index(name=cls._INDEX_NAME).search(query)
+    return results
+
+@accepts_raw
+class AutoCompletable(CachedModel):
   def __init__(self, **kwargs):
     logging.error(kwargs)
-    super(Searchable, self).__init__(**kwargs)
+    super(AutoCompletable, self).__init__(**kwargs)
 
   def _search_fields(self):
     raise NotImplementedError()
