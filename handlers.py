@@ -3,7 +3,7 @@ import logging
 # Google App Engine imports
 from google.appengine.ext import ndb
 
-from models import Permission
+from models import Permission, Dj, Program
 
 # Webapp2 imports
 import webapp2
@@ -54,7 +54,7 @@ class UserHandler(BaseHandler):
       'genres': Permission.GENRE_EDIT,
       'blogs': Permission.BLOG_EDIT,
       'events': Permission.EVENT_EDIT,}
-    permissions_dict = dict(('manage_%s'%key,
+    permissions_dict = dict((key,
                              Permission.get_by_title(perm).has_dj(djkey)) for
                             (key, perm) in permissions.iteritems())
 
@@ -66,12 +66,14 @@ class UserHandler(BaseHandler):
         'lowername' : dj.lowername,
         'username': dj.username,
         'email' : dj.email,
-        'permissions' : permissions,
+        'permissions' : permissions_dict,
         }
 
   @property
   def user(self):
-    return self.dj_key
+    if self.dj_key is None:
+      return None
+    return Dj.get(self.dj_key)
 
   @user.setter
   def user(self, dj):
@@ -97,6 +99,7 @@ class UserHandler(BaseHandler):
     """Logs the dj out, deleting program and dj keys in the session"""
     for key in ('dj', 'program'):
       if key in self.session:
+        self.session[key] = None
         del self.session[key]
 
   def session_has_login(self):
@@ -107,6 +110,9 @@ class UserHandler(BaseHandler):
 
   @property
   def dj_key(self):
+    if "dj" not in self.session:
+      return None
+
     key = self.session.get('dj').get('key')
     if key is not None:
       return ndb.Key(urlsafe=key)
@@ -114,6 +120,9 @@ class UserHandler(BaseHandler):
 
   @property
   def program_key(self):
+    if "program" not in self.session:
+      return None
+
     key = self.session.get('program').get('key')
     if key is not None:
       return ndb.Key(urlsafe=key)

@@ -498,6 +498,9 @@ class CachedModel(object):
   def delete_key(cls, key):
     cls(raw_key=key).delete()
 
+  def __isempty__(self):
+    return self.raw is None
+
 class ApiModel(CachedModel):
   def to_json():
     pass
