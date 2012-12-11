@@ -837,28 +837,49 @@ class MySelf(UserHandler):
     self.redirect("/dj/")
 
 # Lets a DJ edit the description etc. of their show.
+# If the DJ is not presently logged into a show (and they have none),
+# they may create one
 class MyShow(UserHandler):
   @login_required
   def get(self, program_key):
-    program = Program.get(program_key if program_key else self.program_key)
-    if self.dj_key not in program.dj_list:
-      if Permission.get_by_title(
-          Permission.PROGRAM_EDIT).has_dj(self.dj_key):
+    program = Program.get(program_key) if program_key else None
+    program = (program if program else Program.get(self.program_key) if self.program_key else None)
+
+    logging.info(self.session)
+
+    if program is None:
+      if Program.get_by_dj(self.dj_key):
         self.session.add_flash(
-          "You have permission to edit programs, but are not a member"
-          " of the requested program, and so you have been redirected"
-          " to program management.")
-        self.redirect("/dj/programs/%s"%program_key)
+          "You are not presently in a program, but you already have one."
+          " If you have two shows this semester, contact a member of management"
+          " to get you set up and charting.", level="error")
+        self.redirect("/dj/selectprogram")
         return
 
-      self.session.add_flash(
-        "You are not a member of the program %s. You will not be able"
-        " to edit it."%program.title)
-      self.redirect("/dj/myshow/")
-      return
+      logging.error("Ok")
+      # We are creating a new program
+      program_djs = [self.user] # Djs creating a new show must be in it!
+    else:
+      if self.dj_key not in program.dj_list:
+        if Permission.get_by_title(
+            Permission.PROGRAM_EDIT).has_dj(self.dj_key):
+          self.session.add_flash(
+            "You have permission to edit programs, but are not a member"
+            " of the requested program, and so you have been redirected"
+            " to program management.")
+          self.redirect("/dj/programs/%s"%program_key)
+          return
+
+        self.session.add_flash(
+          "You are not a member of the program %s. You will not be able"
+          " to edit it."%program.title)
+        self.redirect("/dj/")
+        return
+      else:
+        program_djs = [Dj.get(dj) for dj in program.dj_list]
 
     template_values = {
-      'program_djs': [Dj.get(dj) for dj in program.dj_list],
+      'program_djs': program_djs,
       'session': self.session,
       'flash': self.flashes,
       'program': program,
