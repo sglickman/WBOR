@@ -54,9 +54,9 @@ class UserHandler(BaseHandler):
       'genres': Permission.GENRE_EDIT,
       'blogs': Permission.BLOG_EDIT,
       'events': Permission.EVENT_EDIT,}
-    permissions_dict = dict((key,
-                             Permission.get_by_title(perm).has_dj(djkey)) for
-                            (key, perm) in permissions.iteritems())
+    permissions = dict((key,
+                        Permission.get_by_title(perm).has_dj(djkey)) for
+                       (key, perm) in permissions.iteritems())
 
     if not reduce(lambda x,y: x or y, permissions.values()):
       permissions = None
@@ -66,7 +66,7 @@ class UserHandler(BaseHandler):
         'lowername' : dj.lowername,
         'username': dj.username,
         'email' : dj.email,
-        'permissions' : permissions_dict,
+        'permissions' : permissions,
         }
 
   @property
