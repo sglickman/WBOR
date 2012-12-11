@@ -110,9 +110,27 @@
 {% block content_row %}
 <div class="span7">
   <p>Great! {{ uses }} new DJs can now register for WBOR.org using the
-    secret code {{ token }}. The easiest way to proceed is to copy,
-    paste, and send the new DJs the following email:</p>
+    secret code <strong>{{ token }}</strong>. The easiest way to
+    proceed is to copy, paste, and send the new DJs the following
+    email:</p>
 
-  <textarea></textarea>
+  <textarea class="span7" rows=20>
+Hi!
+
+Now that you've been accepted to have a show on WBOR 91.1FM,
+you're going to need to register at WBOR.org so that you can take
+advantage of song charting! To register, copy and paste the
+following URL into your web browser:
+
+http://www.wbor.org/signup?token={{ token }}
+
+Alternatively, you may navigate yourself to the DJ Signup page at
+www.wbor.org and enter the following secret code where
+appropriate:
+
+{{ token }}
+
+Good luck with your new show!
+  </textarea>
 </div>
 {% endblock %}
