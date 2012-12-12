@@ -164,9 +164,7 @@ class Login(UserHandler):
       self.session.add_flash("You have successfully logged in,"
                     "but you have no associated programs."
                     "You will not be able to do much until"
-                    "you have a program.  If you see this message,"
-                    "please email <a href='mailto:cmsmith@bowdoin.edu'>"
-                    "Ruben</a> immediately.", level="success")
+                    "you have a program.", level="success")
       self.redirect('/dj/')
       return
     elif len(program_list) == 1:

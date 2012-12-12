@@ -572,7 +572,7 @@ class Permission(CachedModel):
     if is_key(djs) or isinstance(djs, Dj):
       djs = (djs,)
 
-    self.dj_list = list(set(self.dj_list).
+    self.raw.dj_list = list(set(self.dj_list).
                         difference(as_keys(djs)))
 
   def has_dj(self, dj):

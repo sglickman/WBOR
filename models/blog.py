@@ -60,8 +60,7 @@ class BlogPost(LastCachedModel):
     return self.raw.post_date
   @property
   def post_date_as_date(self):
-    return datetime.datetime.combine(
-      self.post_date.date(), datetime.datetime.time())
+    return self.post_date.date()
 
   def __init__(self, is_fresh=False,
                title=None, text=None, post_date=None,
@@ -260,8 +259,7 @@ class Event(LastCachedModel):
 
   @property
   def event_date_as_date(self):
-    return datetime.datetime.combine(
-      self.event_date.date(), datetime.datetime.time())
+    return self.event_date.date()
 
   def __init__(self, 
                title=None, text=None, event_date=None,
