@@ -102,6 +102,15 @@ class Program(Searchable, NewCacheable):
     return obj.cache_set(key, obj.SLUG, slug)
 
   @quantummethod
+  def purge_slug_cache(obj, key=None, slug=None):
+    key = obj.key if key is None else key
+    slug = obj.slug if slug is None else slug
+
+    cache = obj.cache_get(obj.SLUG, slug)
+    if cache and cache == key:
+      obj.cache_delete(obj.SLUG, slug)
+
+  @quantummethod
   def add_dj_cache(obj, key=None, dj_list=None):
     key = obj.key if key is None else key
     dj_list = obj.dj_list if dj_list is None else dj_list
@@ -116,6 +125,22 @@ class Program(Searchable, NewCacheable):
     for dj_cache in caches:
       dj_cache.append(key)
       dj_cache.save()
+
+  @quantummethod
+  def purge_dj_cache(obj, key=None, dj_list=None):
+    key = obj.key if key is None else key
+    dj_list = obj.dj_list if dj_list is None else dj_list
+
+    if key is None or dj_list is None:
+      return
+
+    caches = [SetQueryCache.fetch(obj.BY_DJ_ENTRY % dj_key) for
+              dj_key in dj_list]
+    logging.info(caches)
+    logging.info(dj_list)
+    for dj_cache in caches:
+      dj_cache.discard(key)
+      dj_cache.save() 
 
   def add_to_cache(self):
     super(Program, self).add_to_cache()
