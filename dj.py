@@ -874,6 +874,15 @@ class MyShow(UserHandler):
         " to edit it."%program.title)
       self.redirect("/dj/myshow/")
       return
+
+    # If we've chosen to delete the program
+    if self.request.get("submit") == "Delete Program":
+      program.delete()
+      self.clear_session_program()
+      self.session.add_flash(program.title + " successfully deleted.",  level="success")
+      self.redirect("/dj")
+      return
+
     slug = self.request.get("slug")
     p = Program.get_by_slug(slug)
     if p and program.key != p.key:

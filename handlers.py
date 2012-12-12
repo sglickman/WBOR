@@ -87,6 +87,11 @@ class UserHandler(BaseHandler):
         'title' : pgm.title,
         }
 
+  def clear_session_program(self):
+    if "program" in self.session:
+      self.session["program"] = None
+      del self.session["program"]
+
   @property
   def program(self):
     return self.program_key
