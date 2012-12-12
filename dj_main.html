@@ -14,6 +14,18 @@
   <a href="/programs/{{ session.program.slug }}">{{ session.program.title }}</a>
 </h3> 
 You can <a href='/dj/selectprogram/'>change programs here</a>.
+{% else %}
+<h3>You Are Not Signed In to a Show Yet.</h3>
+<p>You will not be able to chart until you do. This is totally okay
+  though!  There are two steps you may take from here:</p>
+<ol>
+  <li>You're signed up for a show, and another DJ you're with has
+  already created the show on the website: Ask them to edit the
+  program, and add you!</li>
+  <li>You're signed up for a show, and you're the first one to sign up
+  for WBOR.org, or the only DJ on the show: You
+  can <a href='/dj/myshow'>create your first new show here!</a></li>
+</ol>
 {% endif %}
 {% endblock %}
 
