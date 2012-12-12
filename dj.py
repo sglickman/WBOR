@@ -663,6 +663,7 @@ class EditDJ(UserHandler):
       self.session.add_flash(fullname + " has been successfully edited.", 
                              level="success")
     elif self.request.get("submit") == "Delete DJ":
+      fullname = dj.fullname
       dj.delete()
       self.session.add_flash(fullname + " has been successfully deleted.",
                              level="success")
