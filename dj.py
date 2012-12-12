@@ -40,9 +40,11 @@ from slughifi import slughifi
 
 from models.base_models import (NoSuchEntry, ModelError)
 from models.dj import (Dj, Permission, InvalidLogin,
-                       NoSuchUsername, NoSuchEmail)
+                       NoSuchUsername, NoSuchEmail,
+                       DjRegistrationToken)
 from models.tracks import Album, Song, ArtistName
-from models.play import Play, Psa, StationID, Program
+from models.play import (Play, Psa, StationID, Program,
+                         NoSuchProgramSlug)
 from models.blog import BlogPost, Event
 
 from configuration import webapp2conf
@@ -164,7 +166,7 @@ class Login(UserHandler):
                     "You will not be able to do much until"
                     "you have a program.  If you see this message,"
                     "please email <a href='mailto:cmsmith@bowdoin.edu'>"
-                    "Connor</a> immediately.", level="success")
+                    "Ruben</a> immediately.", level="success")
       self.redirect('/dj/')
       return
     elif len(program_list) == 1:
@@ -210,7 +212,7 @@ class RequestPassword(UserHandler):
         self.session.add_flash(
           "You will not be able to do much until you have a"
           "program.  If you see this message, please email"
-          "<a href='mailto:cmsmith@bowdoin.edu'>Connor</a>"
+          "<a href='mailto:cmsmith@bowdoin.edu'>Ruben</a>"
           "immediately.")
         self.redirect('/dj/myself')
         return
@@ -666,6 +668,25 @@ class EditDJ(UserHandler):
                              level="success")
     self.redirect("/dj/djs/")
 
+class OpenRegistration(UserHandler):
+  def get(self):
+    self.redirect("/dj/djs/")
+
+  @authorization_required("Manage DJs")
+  def post(self):
+    uses = int(self.request.get("numdjs"))
+    token = DjRegistrationToken.new(uses=uses)
+    token.put()
+
+    template_values = {
+      'session': self.session,
+      'flash': self.flashes,
+      'posts': BlogPost.get_last(num=3),
+      'token': token.id,
+      'uses': uses,
+    }
+    self.response.out.write(
+      template.render(get_path("dj_open_registration.html"), template_values))
 
 # Displays current programs and adds new programs
 # get(): display current programs
@@ -817,28 +838,48 @@ class MySelf(UserHandler):
     self.redirect("/dj/")
 
 # Lets a DJ edit the description etc. of their show.
+# If the DJ is not presently logged into a show (and they have none),
+# they may create one
 class MyShow(UserHandler):
   @login_required
   def get(self, program_key):
-    program = Program.get(program_key if program_key else self.program_key)
-    if self.dj_key not in program.dj_list:
-      if Permission.get_by_title(
-          Permission.PROGRAM_EDIT).has_dj(self.dj_key):
+    program = Program.get(program_key) if program_key else None
+    program = (program if program else Program.get(self.program_key) if self.program_key else None)
+
+    logging.info(self.session)
+
+    if program is None:
+      if Program.get_by_dj(self.dj_key, keys_only=True):
         self.session.add_flash(
-          "You have permission to edit programs, but are not a member"
-          " of the requested program, and so you have been redirected"
-          " to program management.")
-        self.redirect("/dj/programs/%s"%program_key)
+          "You are not presently in a program, but you already have one."
+          " If you have two shows this semester, contact a member of management"
+          " to get you set up and charting.", level="error")
+        self.redirect("/dj/selectprogram")
         return
 
-      self.session.add_flash(
-        "You are not a member of the program %s. You will not be able"
-        " to edit it."%program.title)
-      self.redirect("/dj/myshow/")
-      return
+      # We are creating a new program
+      program_djs = [self.user] # Djs creating a new show must be in it!
+    else:
+      if self.dj_key not in program.dj_list:
+        if Permission.get_by_title(
+            Permission.PROGRAM_EDIT).has_dj(self.dj_key):
+          self.session.add_flash(
+            "You have permission to edit programs, but are not a member"
+            " of the requested program, and so you have been redirected"
+            " to program management.")
+          self.redirect("/dj/programs/%s"%program_key)
+          return
+
+        self.session.add_flash(
+          "You are not a member of the program %s. You will not be able"
+          " to edit it."%program.title)
+        self.redirect("/dj/")
+        return
+      else:
+        program_djs = [Dj.get(dj) for dj in program.dj_list]
 
     template_values = {
-      'program_djs': [Dj.get(dj) for dj in program.dj_list],
+      'program_djs': program_djs,
       'session': self.session,
       'flash': self.flashes,
       'program': program,
@@ -853,27 +894,36 @@ class MyShow(UserHandler):
     program = None
     if program_key:
       program = Program.get(program_key)
-    if not program:
-      self.session.add_flash("Unable to find program.")
-      self.redirect("/dj/myshow")
-      return
-
-    if self.dj_key not in program.dj_list:
-      if Permission.get_by_title(
-          Permission.PROGRAM_EDIT).has_dj(self.dj_key):
-        self.session.add_flash(
-          "You have permission to edit programs, but are not a member"
-          " of the requested program, and so you have been redirected"
-          " to program management.")
-        edit_rh = EditProgram.initialize(self.request, self.response)
-        edit_rh.post(program_key)
+      if not program:
+        self.session.add_flash("Unable to find program.")
+        self.redirect("/dj/myshow")
         return
 
-      self.session.add_flash(
-        "You are not a member of the program %s. You will not be able"
-        " to edit it."%program.title)
-      self.redirect("/dj/myshow/")
-      return
+      if self.dj_key not in program.dj_list:
+        if Permission.get_by_title(
+            Permission.PROGRAM_EDIT).has_dj(self.dj_key):
+          self.session.add_flash(
+            "You have permission to edit programs, but are not a member"
+            " of the requested program, and so you have been redirected"
+            " to program management.")
+          edit_rh = EditProgram.initialize(self.request, self.response)
+          edit_rh.post(program_key)
+          return
+
+        self.session.add_flash(
+          "You are not a member of the program %s. You will not be able"
+          " to edit it."%program.title)
+        self.redirect("/dj/myshow/")
+        return
+
+    else: # Assert that this DJ is already in no programs if we're new
+      if Program.get_by_dj(self.dj_key, keys_only=True):
+        self.session.add_flash(
+          "You are not presently in a program, but you already have one."
+          " If you have two shows this semester, contact a member of management"
+          " to get you set up and charting.", level="error")
+        self.redirect("/dj/selectprogram")
+        return
 
     # If we've chosen to delete the program
     if self.request.get("submit") == "Delete Program":
@@ -882,20 +932,36 @@ class MyShow(UserHandler):
       self.session.add_flash(program.title + " successfully deleted.",  level="success")
       self.redirect("/dj")
       return
-
     slug = self.request.get("slug")
-    p = Program.get_by_slug(slug)
-    if p and program.key != p.key:
-      self.session.add_flash("There is already a program with slug \""
-                             + slug + "\".")
-      self.redirect("/dj/myshow/%s"%program_key)
-      return
-    program.title = self.request.get("title")
-    program.slug = self.request.get("slug")
-    program.desc = self.request.get("desc")
-    program.dj_list = [ndb.Key(urlsafe=key) for key in
-                       self.request.get_all("djkey")]
-    program.page_html = self.request.get("page_html")
+    try:
+      p = Program.get_by_slug(slug, keys_only=True)
+      if (program is None and p) or (p and program.key != p):
+        self.session.add_flash("There is already a program with slug \""
+                               + slug + "\".")
+        self.redirect("/dj/myshow/%s"%program_key)
+        return
+    except NoSuchProgramSlug:
+      pass
+
+    title = self.request.get("title")
+    desc = self.request.get("desc")
+    dj_list = [ndb.Key(urlsafe=key) for key in
+               self.request.get_all("djkey")]
+    page_html = self.request.get("page_html")
+
+    if program is None:
+      program = Program.new(title=title,
+                            desc=desc,
+                            dj_list=dj_list,
+                            page_html=page_html,
+                            slug=slug)
+    else:
+      program.title = title
+      program.slug = slug
+      program.desc = desc
+      program.dj_list = dj_list
+      program.page_html = page_html
+
     program.put()
     self.set_session_program(program)
     self.session.add_flash("Program successfully changed.",  level="success")
@@ -1408,30 +1474,31 @@ class ManageAlbums(UserHandler):
     if self.request.get("ajax"):
       self.response.out.write(
         json.dumps({
-            'msg': ("The album \"%s\" by %s was successfully added."%
-                    (title, artist)),
-            'result': 0,}))
+          'msg': ("The album \"%s\" by %s was successfully added."%
+                  (title, artist)),
+          'result': 0,}))
 
 
 app = webapp2.WSGIApplication([
-    ('/dj/?', MainPage),
-    ('/dj/login/?', Login),
-    ('/dj/logout/?', Logout),
-    ('/dj/djs/?', ManageDJs),
-    ('/dj/djs/([^/]*)/?', EditDJ),
-    ('/dj/programs/?', ManagePrograms),
-    ('/dj/programs/([^/]*)/?', EditProgram),
-    ('/dj/chartsong/?', ChartSong),
-    ('/dj/albums/?', ManageAlbums),
-    ('/dj/selectprogram/?', SelectProgram),
-    ('/dj/logs/?', ViewLogs),
-    ('/dj/permissions/?', ManagePermissions),
-    ('/dj/myshow(?:/([^/]*))?/?', MyShow),
-    ('/blog/([^/]*)/([^/]*)/edit/?', EditBlogPost),
-    ('/dj/newpost/?', NewBlogPost),
-    ('/dj/event/?', NewEvent),
-    ('/dj/myself/?', MySelf),
-    ('/dj/removeplay/?', RemovePlay),
-    ('/dj/event/([^/]*)/?', EditEvent),
-    ('/dj/reset/?.*', RequestPassword),
-    ], debug=True, config=webapp2conf)
+  ('/dj/?', MainPage),
+  ('/dj/login/?', Login),
+  ('/dj/logout/?', Logout),
+  ('/dj/djs/?', ManageDJs),
+  ('/dj/djs/([^/]*)/?', EditDJ),
+  ('/dj/openregistration/?', OpenRegistration),
+  ('/dj/programs/?', ManagePrograms),
+  ('/dj/programs/([^/]*)/?', EditProgram),
+  ('/dj/chartsong/?', ChartSong),
+  ('/dj/albums/?', ManageAlbums),
+  ('/dj/selectprogram/?', SelectProgram),
+  ('/dj/logs/?', ViewLogs),
+  ('/dj/permissions/?', ManagePermissions),
+  ('/dj/myshow(?:/([^/]*))?/?', MyShow),
+  ('/blog/([^/]*)/([^/]*)/edit/?', EditBlogPost),
+  ('/dj/newpost/?', NewBlogPost),
+  ('/dj/event/?', NewEvent),
+  ('/dj/myself/?', MySelf),
+  ('/dj/removeplay/?', RemovePlay),
+  ('/dj/event/([^/]*)/?', EditEvent),
+  ('/dj/reset/?.*', RequestPassword),
+], debug=True, config=webapp2conf)

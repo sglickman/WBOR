@@ -86,14 +86,16 @@
 
 {% block top_row %}
   <div class="span12">
-    <h1>Edit my Program</h1>
+    <h1>{% if program %}Edit my Program{% else %}Create a New
+    Program{% endif %}</h1>
     <hr>
   </div>
 {% endblock %}
 
 {% block left_column %}
     <div id='edit-program'>
-        <h2>Editing </em>{{ program.title }}</em></h2>
+        <h2>{% if program %}Editing <em>{{ program.title }}
+          </em>{% else %}Your New Show{% endif %}</h2>
         {% include "dj_edit_program_form.html" %}
     </div>
 

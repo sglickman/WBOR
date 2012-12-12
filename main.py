@@ -8,7 +8,7 @@ import time
 import json
 import logging
 
-from models.dj import Permission, Dj
+from models.dj import Permission, Dj, DjRegistrationToken
 from models.tracks import Album, Song, ArtistName
 from models.play import Play, Program
 from models.base_models import NoSuchEntry
@@ -604,6 +604,72 @@ class ContactPage(BaseHandler):
     self.response.out.write(
       template.render(get_path("contact.html"), template_values))
 
+# Allows DJ auto-signup
+# get(): Display DJ signup form
+# post(): Register DJ (if valid signup token)
+class SignUp(BaseHandler):
+  def get(self):
+    template_values = {
+      'token': self.request.get("token"),
+      'session': self.session,
+      'flash': self.flashes,
+      'posts': BlogPost.get_last(num=3),
+    }
+    self.response.out.write(
+      template.render(get_path("signup.html"), template_values))
+
+  def post(self):
+    if self.request.get("submit") != "Register":
+      self.session.add_flash(
+        "There was an error processing your request.  Please try again.",
+        level="error")
+      self.redirect(")/signup?token=%s"%token)
+      return
+
+    elif self.request.get("submit") == "Register":
+      token_str = self.request.get("token")
+      fullname = self.request.get("fullname")
+      email = self.request.get("email")
+      username = self.request.get("username")
+      password = self.request.get("password")
+
+      # Assert that the DJ Registration code is valid and available
+      token = DjRegistrationToken.get(token_str)
+      if not token:
+        self.session.add_flash(
+          "The secret registration token you have entered is either "
+          "invalid, or has already been used up. Double check that "
+          "it is correct. If it is not, <a>contact Ruben</a>.",
+          level="error")
+        self.redirect("/signup?token=%s"%token_str)
+        return 
+
+      required_fields = [fullname, email, username, password]
+      if "" in [field.strip() for field in required_fields]:
+        self.session.add_flash("None of the fields may be empty")
+        self.redirect("/signup?token=%s"%token_str)
+        return
+
+      if password is not None and password != self.request.get("confirm"):
+        self.session.add_flash("Passwords do not match.")
+        self.redirect("/signup?token=%s"%token_str)
+        return
+
+      dj = Dj(fullname=fullname, 
+              email=email,
+              username=username,
+              password=password)
+
+      # Putting the DJ with the token will transactionally update the token
+      dj.put(token=token)
+
+      self.session.add_flash("%s, you have successfully registered as a DJ."
+                             "You may now log in" % dj.fullname, 
+                             level="success")
+
+    self.redirect("/")
+
+
 class ProgramPage(BaseHandler):
   def get(self, slug):
     program = Program.get_by_slug(slug)
@@ -648,26 +714,27 @@ def profile_main():
 
 
 app = webapp2.WSGIApplication([
-    ('/', MainPage),
-    ('/updateinfo/?', UpdateInfo),
-    ('/ajax/albumtable/?', AlbumTable),
-    ('/ajax/albuminfo/?', AlbumInfo),
-    ('/ajax/artistcomplete/?', ArtistComplete),
-    ('/ajax/getSongList/?', SongList),
-    ('/ajax/djcomplete/?', DjComplete),
-    ('/ajax/showcomplete/?', ShowComplete),
-    ('/setup/?', Setup),
-    ('/blog/([^/]*)/([^/]*)/?', BlogDisplay),
-    ('/programs?/([^/]*)/?', ProgramPage),
-    ('/schedule/?', SchedulePage),
-    ('/playlists/?', PlaylistPage),
-    ('/playexport/?', PlaylistExport),
-    ('/fun/?', FunPage),
-    ('/charts/?', ChartsPage),
-    ('/history/?', HistoryPage),
-    ('/contact/?', ContactPage),
-    ('/events/?', EventPage),
-    ('/albums/([^/]*)/?', ViewCoverHandler),
-    ('/callvoice/?', CallVoice),
-    ('/testmodels/?', TestModels),
-    ], debug=True, config=webapp2conf)
+  ('/', MainPage),
+  ('/updateinfo/?', UpdateInfo),
+  ('/ajax/albumtable/?', AlbumTable),
+  ('/ajax/albuminfo/?', AlbumInfo),
+  ('/ajax/artistcomplete/?', ArtistComplete),
+  ('/ajax/getSongList/?', SongList),
+  ('/ajax/djcomplete/?', DjComplete),
+  ('/ajax/showcomplete/?', ShowComplete),
+  ('/setup/?', Setup),
+  ('/blog/([^/]*)/([^/]*)/?', BlogDisplay),
+  ('/programs?/([^/]*)/?', ProgramPage),
+  ('/schedule/?', SchedulePage),
+  ('/playlists/?', PlaylistPage),
+  ('/playexport/?', PlaylistExport),
+  ('/fun/?', FunPage),
+  ('/charts/?', ChartsPage),
+  ('/history/?', HistoryPage),
+  ('/contact/?', ContactPage),
+  ('/events/?', EventPage),
+  ('/albums/([^/]*)/?', ViewCoverHandler),
+  ('/callvoice/?', CallVoice),
+  ('/testmodels/?', TestModels),
+  ('/signup/?', SignUp),
+], debug=True, config=webapp2conf)

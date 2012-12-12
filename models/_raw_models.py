@@ -75,6 +75,10 @@ class Event(ndb.Model):
   desc = ndb.TextProperty()
   url = ndb.StringProperty()
 
+# Token strings are unique, and therefore used as IDs for this class.
+class DjRegistrationToken(ndb.Model):
+  uses = ndb.IntegerProperty()
+
 def search_namify(artist_name):
   SEARCH_IGNORE_PREFIXES = (
     "the ",
