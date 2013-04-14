@@ -506,7 +506,7 @@ class PlaylistExport(BaseHandler):
     csv_sep = "\t"
     out_data = [("Date", "Time", "Title", "Artist")]
     for p in plays:
-      s = cache.getSong(p.song_key)
+      s = p.song
       out_data.append((p.play_date.isoformat(csv_sep), s.title, s.artist))
 
     self.response.out.write("\n".join([csv_sep.join(row) for row in out_data]))
