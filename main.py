@@ -470,18 +470,20 @@ class PlaylistExport(BaseHandler):
         self.redirect("/")
         return
       if selected_date:
-        plays = models.getPlaysBetween(program=selected_program,
-                                       after=(selected_date -
-                                              datetime.timedelta(hours=24)),
-                                       before=(selected_date +
-                                               datetime.timedelta(hours=24)))
+        plays = Play.get_last(program=selected_program,
+                              after=(selected_date -
+                                     datetime.timedelta(hours=24)),
+                              before=(selected_date +
+                                      datetime.timedelta(hours=24)),
+                              num=60)
       else:
         lastplay = Play.get_last(program=selected_program)
         if lastplay:
           last_date = lastplay.play_date
-          plays = models.getPlaysBetween(program=selected_program,
-                                         after=(last_date -
-                                                datetime.timedelta(days=1)))
+          plays = Play.get_last(program=selected_program,
+                                after=(last_date -
+                                       datetime.timedelta(days=1)),
+                                num=60)
         else:
           plays = []
     else:
@@ -493,7 +495,11 @@ class PlaylistExport(BaseHandler):
       if selected_date:
         print "doop"
         print selected_date.isoformat(" ")
-        plays = models.getRetardedNumberOfPlaysForDate(selected_date)
+        plays = Play.get_last(after=(selected_date -
+                                     datetime.timedelta(hours=24)),
+                              before=(selected_date +
+                                      datetime.timedelta(hours=24)),
+                              num=1000)
       else:
         plays = Play.get_last(num=60)
 
@@ -642,7 +648,7 @@ class SignUp(BaseHandler):
           "it is correct. If it is not, <a>contact Ruben</a>.",
           level="error")
         self.redirect("/signup?token=%s"%token_str)
-        return 
+        return
 
       required_fields = [fullname, email, username, password]
       if "" in [field.strip() for field in required_fields]:
@@ -655,7 +661,7 @@ class SignUp(BaseHandler):
         self.redirect("/signup?token=%s"%token_str)
         return
 
-      dj = Dj(fullname=fullname, 
+      dj = Dj(fullname=fullname,
               email=email,
               username=username,
               password=password)
@@ -664,7 +670,7 @@ class SignUp(BaseHandler):
       dj.put(token=token)
 
       self.session.add_flash("%s, you have successfully registered as a DJ."
-                             "You may now log in" % dj.fullname, 
+                             "You may now log in" % dj.fullname,
                              level="success")
 
     self.redirect("/")

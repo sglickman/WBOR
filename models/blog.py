@@ -203,9 +203,9 @@ class BlogPost(LastCachedModel):
     if self.key == self._get_slug_cache(self.slug,
                                         self.post_date_as_date,
                                         keys_only=True):
-      self.cache_delete(self.BY_SLUG, slug, self.post_date_as_date)
-    if self.key ==  self._get_slug_cache(self.slug, keys_only=True):
-      self.cache_delete(self.BY_SLUG, slug)
+      self.cache_delete(self.BY_SLUG, self.slug, self.post_date_as_date)
+    if self.key == self._get_slug_cache(self.slug, keys_only=True):
+      self.cache_delete(self.BY_SLUG, self.slug, None)
     self.purge_from_last_cache(self.key)
 
 @accepts_raw
@@ -396,9 +396,9 @@ class Event(LastCachedModel):
     if self.key == self._get_slug_cache(self.slug,
                                         self.event_date_as_date,
                                         keys_only=True):
-      self.cache_delete(self.BY_SLUG, slug, self.event_date_as_date)
+      self.cache_delete(self.BY_SLUG, self.slug, self.event_date_as_date)
     if self.key ==  self._get_slug_cache(self.slug, keys_only=True):
-      self.cache_delete(self.BY_SLUG, slug)
+      self.cache_delete(self.BY_SLUG, self.slug, None)
     self.purge_from_last_cache(self.key)
 
   # Utility method so that a last-cacheable entry knows how to
